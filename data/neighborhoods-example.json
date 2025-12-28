@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Downtown Portland",
+    "location": "Portland, OR",
+    "description": "Urban core neighborhood with great walkability and nightlife"
+  },
+  {
+    "name": "Pearl District",
+    "location": "Portland, OR",
+    "description": "Modern neighborhood known for art galleries and dining"
+  },
+  {
+    "name": "Central West End",
+    "location": "St. Louis, MO",
+    "description": "Historic neighborhood with beautiful architecture"
+  },
+  {
+    "name": "Soulard",
+    "location": "St. Louis, MO",
+    "description": "Historic French neighborhood known for Mardi Gras celebrations"
+  },
+  {
+    "name": "Downtown Seattle",
+    "location": "Seattle, WA",
+    "description": "Urban core with tech companies and waterfront views"
+  },
+  {
+    "name": "Capitol Hill",
+    "location": "Seattle, WA",
+    "description": "Vibrant neighborhood with nightlife and restaurants"
+  },
+  {
+    "name": "6th Street District",
+    "location": "Austin, TX",
+    "description": "Entertainment district with live music venues"
+  },
+  {
+    "name": "South Congress",
+    "location": "Austin, TX",
+    "description": "Trendy area with boutique shops and food trucks"
+  }
+]

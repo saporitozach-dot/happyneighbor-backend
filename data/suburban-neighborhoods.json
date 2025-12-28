@@ -1,0 +1,453 @@
+[
+  {
+    "name": "Lake Oswego",
+    "location": "Portland, OR",
+    "description": "Upscale suburban community with excellent schools and waterfront properties"
+  },
+  {
+    "name": "Beaverton",
+    "location": "Portland, OR",
+    "description": "Family-friendly suburb with parks, trails, and strong community events"
+  },
+  {
+    "name": "West Linn",
+    "location": "Portland, OR",
+    "description": "Quiet residential suburb known for safety and top-rated schools"
+  },
+  {
+    "name": "Tigard",
+    "location": "Portland, OR",
+    "description": "Diverse suburban community with shopping centers and family activities"
+  },
+  {
+    "name": "Hillsboro",
+    "location": "Portland, OR",
+    "description": "Growing tech suburb with new developments and community centers"
+  },
+  {
+    "name": "Chesterfield",
+    "location": "St. Louis, MO",
+    "description": "Affluent suburban community with excellent schools and shopping"
+  },
+  {
+    "name": "Ballwin",
+    "location": "St. Louis, MO",
+    "description": "Family-oriented suburb with parks, recreation centers, and community events"
+  },
+  {
+    "name": "Kirkwood",
+    "location": "St. Louis, MO",
+    "description": "Historic suburban town with charming downtown and strong community"
+  },
+  {
+    "name": "Webster Groves",
+    "location": "St. Louis, MO",
+    "description": "Established suburb with tree-lined streets and excellent schools"
+  },
+  {
+    "name": "Clayton",
+    "location": "St. Louis, MO",
+    "description": "Upscale suburban area with fine dining and cultural amenities"
+  },
+  {
+    "name": "Bellevue",
+    "location": "Seattle, WA",
+    "description": "Tech hub suburb with excellent schools and diverse dining"
+  },
+  {
+    "name": "Redmond",
+    "location": "Seattle, WA",
+    "description": "Microsoft headquarters suburb with parks and family-friendly atmosphere"
+  },
+  {
+    "name": "Kirkland",
+    "location": "Seattle, WA",
+    "description": "Waterfront suburb with beautiful parks and strong community"
+  },
+  {
+    "name": "Sammamish",
+    "location": "Seattle, WA",
+    "description": "Family-focused suburb with top schools and outdoor recreation"
+  },
+  {
+    "name": "Issaquah",
+    "location": "Seattle, WA",
+    "description": "Growing suburb with hiking trails and excellent quality of life"
+  },
+  {
+    "name": "Round Rock",
+    "location": "Austin, TX",
+    "description": "Family-friendly suburb with great schools and community events"
+  },
+  {
+    "name": "Cedar Park",
+    "location": "Austin, TX",
+    "description": "Fast-growing suburb with new developments and recreational facilities"
+  },
+  {
+    "name": "Georgetown",
+    "location": "Austin, TX",
+    "description": "Historic suburban town with charming downtown and community spirit"
+  },
+  {
+    "name": "Leander",
+    "location": "Austin, TX",
+    "description": "Affordable suburb with new construction and family amenities"
+  },
+  {
+    "name": "Pflugerville",
+    "location": "Austin, TX",
+    "description": "Diverse suburban community with parks and growing infrastructure"
+  },
+  {
+    "name": "Palo Alto",
+    "location": "San Francisco, CA",
+    "description": "Tech hub suburb with Stanford University and excellent schools"
+  },
+  {
+    "name": "Mountain View",
+    "location": "San Francisco, CA",
+    "description": "Google headquarters suburb with parks and family activities"
+  },
+  {
+    "name": "Cupertino",
+    "location": "San Francisco, CA",
+    "description": "Apple headquarters suburb with top-rated schools and safety"
+  },
+  {
+    "name": "Fremont",
+    "location": "San Francisco, CA",
+    "description": "Diverse suburban community with parks and cultural diversity"
+  },
+  {
+    "name": "Sunnyvale",
+    "location": "San Francisco, CA",
+    "description": "Tech suburb with excellent schools and family-friendly atmosphere"
+  },
+  {
+    "name": "Evanston",
+    "location": "Chicago, IL",
+    "description": "Northwestern University suburb with lakefront and cultural amenities"
+  },
+  {
+    "name": "Naperville",
+    "location": "Chicago, IL",
+    "description": "Large suburb with excellent schools, parks, and community events"
+  },
+  {
+    "name": "Oak Park",
+    "location": "Chicago, IL",
+    "description": "Historic suburb with Frank Lloyd Wright architecture and diversity"
+  },
+  {
+    "name": "Schaumburg",
+    "location": "Chicago, IL",
+    "description": "Family-friendly suburb with shopping, parks, and good schools"
+  },
+  {
+    "name": "Arlington Heights",
+    "location": "Chicago, IL",
+    "description": "Established suburb with strong community and recreational facilities"
+  },
+  {
+    "name": "Plano",
+    "location": "Dallas, TX",
+    "description": "Large suburban city with excellent schools and corporate headquarters"
+  },
+  {
+    "name": "Frisco",
+    "location": "Dallas, TX",
+    "description": "Fast-growing suburb with new developments and family amenities"
+  },
+  {
+    "name": "McKinney",
+    "location": "Dallas, TX",
+    "description": "Historic downtown suburb with growing population and good schools"
+  },
+  {
+    "name": "Allen",
+    "location": "Dallas, TX",
+    "description": "Family-focused suburb with parks, trails, and community events"
+  },
+  {
+    "name": "Richardson",
+    "location": "Dallas, TX",
+    "description": "Diverse suburb with tech companies and excellent schools"
+  },
+  {
+    "name": "Sugar Land",
+    "location": "Houston, TX",
+    "description": "Affluent suburb with excellent schools and diverse community"
+  },
+  {
+    "name": "The Woodlands",
+    "location": "Houston, TX",
+    "description": "Master-planned community with parks, trails, and top schools"
+  },
+  {
+    "name": "Katy",
+    "location": "Houston, TX",
+    "description": "Fast-growing suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Pearland",
+    "location": "Houston, TX",
+    "description": "Diverse suburban community with parks and growing infrastructure"
+  },
+  {
+    "name": "League City",
+    "location": "Houston, TX",
+    "description": "Waterfront suburb with parks and family-friendly atmosphere"
+  },
+  {
+    "name": "Westminster",
+    "location": "Denver, CO",
+    "description": "Family-friendly suburb with parks, trails, and community events"
+  },
+  {
+    "name": "Broomfield",
+    "location": "Denver, CO",
+    "description": "Growing suburb with excellent schools and outdoor recreation"
+  },
+  {
+    "name": "Arvada",
+    "location": "Denver, CO",
+    "description": "Historic suburb with charming downtown and strong community"
+  },
+  {
+    "name": "Lakewood",
+    "location": "Denver, CO",
+    "description": "Large suburban city with parks, trails, and diverse neighborhoods"
+  },
+  {
+    "name": "Thornton",
+    "location": "Denver, CO",
+    "description": "Affordable suburb with parks and family-friendly amenities"
+  },
+  {
+    "name": "Brookline",
+    "location": "Boston, MA",
+    "description": "Upscale suburb with excellent schools and cultural amenities"
+  },
+  {
+    "name": "Newton",
+    "location": "Boston, MA",
+    "description": "Affluent suburb with top schools and strong community"
+  },
+  {
+    "name": "Cambridge",
+    "location": "Boston, MA",
+    "description": "Harvard/MIT suburb with vibrant culture and excellent schools"
+  },
+  {
+    "name": "Somerville",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with arts scene and community events"
+  },
+  {
+    "name": "Arlington",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with parks and excellent schools"
+  },
+  {
+    "name": "Coral Gables",
+    "location": "Miami, FL",
+    "description": "Upscale suburb with Mediterranean architecture and excellent schools"
+  },
+  {
+    "name": "Aventura",
+    "location": "Miami, FL",
+    "description": "Affluent suburb with shopping, dining, and waterfront properties"
+  },
+  {
+    "name": "Weston",
+    "location": "Miami, FL",
+    "description": "Master-planned suburb with parks, trails, and top schools"
+  },
+  {
+    "name": "Pinecrest",
+    "location": "Miami, FL",
+    "description": "Family-friendly suburb with parks and excellent schools"
+  },
+  {
+    "name": "Palmetto Bay",
+    "location": "Miami, FL",
+    "description": "Quiet residential suburb with parks and community events"
+  },
+  {
+    "name": "Scottsdale",
+    "location": "Phoenix, AZ",
+    "description": "Upscale suburb with golf courses, resorts, and excellent dining"
+  },
+  {
+    "name": "Chandler",
+    "location": "Phoenix, AZ",
+    "description": "Tech hub suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Gilbert",
+    "location": "Phoenix, AZ",
+    "description": "Fast-growing suburb with parks, trails, and strong community"
+  },
+  {
+    "name": "Peoria",
+    "location": "Phoenix, AZ",
+    "description": "Family-friendly suburb with parks and recreational facilities"
+  },
+  {
+    "name": "Mesa",
+    "location": "Phoenix, AZ",
+    "description": "Large suburban city with diverse neighborhoods and good schools"
+  },
+  {
+    "name": "Bryn Mawr",
+    "location": "Philadelphia, PA",
+    "description": "Upscale Main Line suburb with excellent schools and cultural amenities"
+  },
+  {
+    "name": "Ardmore",
+    "location": "Philadelphia, PA",
+    "description": "Historic Main Line suburb with charming downtown and community"
+  },
+  {
+    "name": "Media",
+    "location": "Philadelphia, PA",
+    "description": "Small town suburb with vibrant downtown and community events"
+  },
+  {
+    "name": "West Chester",
+    "location": "Philadelphia, PA",
+    "description": "College town suburb with historic downtown and excellent schools"
+  },
+  {
+    "name": "Doylestown",
+    "location": "Philadelphia, PA",
+    "description": "Historic suburb with arts scene and family-friendly atmosphere"
+  },
+  {
+    "name": "La Jolla",
+    "location": "San Diego, CA",
+    "description": "Upscale coastal suburb with beaches, parks, and excellent schools"
+  },
+  {
+    "name": "Del Mar",
+    "location": "San Diego, CA",
+    "description": "Coastal suburb with beaches, trails, and strong community"
+  },
+  {
+    "name": "Encinitas",
+    "location": "San Diego, CA",
+    "description": "Beach suburb with surf culture and family-friendly atmosphere"
+  },
+  {
+    "name": "Carlsbad",
+    "location": "San Diego, CA",
+    "description": "Coastal suburb with beaches, parks, and excellent schools"
+  },
+  {
+    "name": "Poway",
+    "location": "San Diego, CA",
+    "description": "Family-friendly suburb with parks, trails, and good schools"
+  },
+  {
+    "name": "Sandy Springs",
+    "location": "Atlanta, GA",
+    "description": "Affluent suburb with parks, trails, and excellent schools"
+  },
+  {
+    "name": "Alpharetta",
+    "location": "Atlanta, GA",
+    "description": "Tech hub suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Roswell",
+    "location": "Atlanta, GA",
+    "description": "Historic suburb with parks, trails, and strong community"
+  },
+  {
+    "name": "Johns Creek",
+    "location": "Atlanta, GA",
+    "description": "Affluent suburb with top schools and family-friendly atmosphere"
+  },
+  {
+    "name": "Marietta",
+    "location": "Atlanta, GA",
+    "description": "Historic suburb with charming downtown and community events"
+  },
+  {
+    "name": "Bloomfield Hills",
+    "location": "Detroit, MI",
+    "description": "Affluent suburb with excellent schools and cultural amenities"
+  },
+  {
+    "name": "Troy",
+    "location": "Detroit, MI",
+    "description": "Family-friendly suburb with parks, shopping, and good schools"
+  },
+  {
+    "name": "Rochester Hills",
+    "location": "Detroit, MI",
+    "description": "Suburban community with parks, trails, and family amenities"
+  },
+  {
+    "name": "Ann Arbor",
+    "location": "Detroit, MI",
+    "description": "University town suburb with vibrant culture and excellent schools"
+  },
+  {
+    "name": "Birmingham",
+    "location": "Detroit, MI",
+    "description": "Upscale suburb with charming downtown and excellent schools"
+  },
+  {
+    "name": "Edina",
+    "location": "Minneapolis, MN",
+    "description": "Affluent suburb with excellent schools and shopping"
+  },
+  {
+    "name": "Plymouth",
+    "location": "Minneapolis, MN",
+    "description": "Family-friendly suburb with parks, trails, and community events"
+  },
+  {
+    "name": "Maple Grove",
+    "location": "Minneapolis, MN",
+    "description": "Growing suburb with shopping, parks, and family amenities"
+  },
+  {
+    "name": "Eden Prairie",
+    "location": "Minneapolis, MN",
+    "description": "Family-focused suburb with parks, trails, and excellent schools"
+  },
+  {
+    "name": "Minnetonka",
+    "location": "Minneapolis, MN",
+    "description": "Affluent suburb with lakes, parks, and top schools"
+  },
+  {
+    "name": "Brentwood",
+    "location": "Nashville, TN",
+    "description": "Affluent suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Franklin",
+    "location": "Nashville, TN",
+    "description": "Historic suburb with charming downtown and strong community"
+  },
+  {
+    "name": "Mount Juliet",
+    "location": "Nashville, TN",
+    "description": "Fast-growing suburb with parks and family-friendly atmosphere"
+  },
+  {
+    "name": "Hendersonville",
+    "location": "Nashville, TN",
+    "description": "Family-friendly suburb with parks, trails, and good schools"
+  },
+  {
+    "name": "Nolensville",
+    "location": "Nashville, TN",
+    "description": "Small town suburb with historic charm and community events"
+  }
+]
+

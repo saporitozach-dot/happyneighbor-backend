@@ -1,0 +1,323 @@
+[
+  {
+    "name": "Frenchtown",
+    "location": "St. Charles, MO",
+    "description": "Historic neighborhood in St. Charles with charming architecture and community events"
+  },
+  {
+    "name": "New Town",
+    "location": "St. Charles, MO",
+    "description": "Master-planned community in St. Charles with parks, trails, and family amenities"
+  },
+  {
+    "name": "Old Town St. Charles",
+    "location": "St. Charles, MO",
+    "description": "Historic downtown neighborhood with shops, restaurants, and community spirit"
+  },
+  {
+    "name": "Wingate",
+    "location": "O'Fallon, MO",
+    "description": "Family-friendly neighborhood in O'Fallon with parks and excellent schools"
+  },
+  {
+    "name": "Westhoff",
+    "location": "O'Fallon, MO",
+    "description": "Established neighborhood in O'Fallon with strong community and good schools"
+  },
+  {
+    "name": "Twin Chimneys",
+    "location": "O'Fallon, MO",
+    "description": "Upscale neighborhood in O'Fallon with parks and family amenities"
+  },
+  {
+    "name": "Wentzville Estates",
+    "location": "Wentzville, MO",
+    "description": "Family neighborhood in Wentzville with parks and community events"
+  },
+  {
+    "name": "Lake Saint Louis",
+    "location": "Wentzville, MO",
+    "description": "Waterfront neighborhood in Wentzville with lake access and recreation"
+  },
+  {
+    "name": "Wildwood Estates",
+    "location": "Wildwood, MO",
+    "description": "Upscale neighborhood in Wildwood with large lots and excellent schools"
+  },
+  {
+    "name": "Glencoe",
+    "location": "Wildwood, MO",
+    "description": "Affluent neighborhood in Wildwood with parks and top-rated schools"
+  },
+  {
+    "name": "Town and Country Estates",
+    "location": "Town and Country, MO",
+    "description": "Prestigious neighborhood in Town and Country with excellent schools"
+  },
+  {
+    "name": "Ladue Estates",
+    "location": "Ladue, MO",
+    "description": "Exclusive neighborhood in Ladue with beautiful homes and top schools"
+  },
+  {
+    "name": "Conway Park",
+    "location": "Creve Coeur, MO",
+    "description": "Family neighborhood in Creve Coeur with parks and community amenities"
+  },
+  {
+    "name": "Maryland Heights Estates",
+    "location": "Maryland Heights, MO",
+    "description": "Established neighborhood in Maryland Heights with parks and shopping nearby"
+  },
+  {
+    "name": "Florissant Valley",
+    "location": "Florissant, MO",
+    "description": "Family-friendly neighborhood in Florissant with parks and good schools"
+  },
+  {
+    "name": "Kirkwood Heights",
+    "location": "Kirkwood, MO",
+    "description": "Historic neighborhood in Kirkwood with charming homes and community"
+  },
+  {
+    "name": "Webster Groves Hills",
+    "location": "Webster Groves, MO",
+    "description": "Established neighborhood in Webster Groves with tree-lined streets"
+  },
+  {
+    "name": "Clayton Heights",
+    "location": "Clayton, MO",
+    "description": "Upscale neighborhood in Clayton with excellent schools and dining"
+  },
+  {
+    "name": "Ballwin Meadows",
+    "location": "Ballwin, MO",
+    "description": "Family neighborhood in Ballwin with parks and recreation centers"
+  },
+  {
+    "name": "Chesterfield Valley",
+    "location": "Chesterfield, MO",
+    "description": "Affluent neighborhood in Chesterfield with shopping and excellent schools"
+  },
+  {
+    "name": "Wellesley Hills",
+    "location": "Wellesley, MA",
+    "description": "Affluent neighborhood in Wellesley with excellent schools and parks"
+  },
+  {
+    "name": "Wellesley Square",
+    "location": "Wellesley, MA",
+    "description": "Historic downtown neighborhood in Wellesley with shops and community"
+  },
+  {
+    "name": "Wellesley Farms",
+    "location": "Wellesley, MA",
+    "description": "Upscale neighborhood in Wellesley with large estates and top schools"
+  },
+  {
+    "name": "Lexington Center",
+    "location": "Lexington, MA",
+    "description": "Historic downtown neighborhood in Lexington with community events"
+  },
+  {
+    "name": "East Lexington",
+    "location": "Lexington, MA",
+    "description": "Family-friendly neighborhood in Lexington with parks and excellent schools"
+  },
+  {
+    "name": "West Lexington",
+    "location": "Lexington, MA",
+    "description": "Affluent neighborhood in Lexington with top-rated schools"
+  },
+  {
+    "name": "Concord Center",
+    "location": "Concord, MA",
+    "description": "Historic downtown neighborhood in Concord with charming architecture"
+  },
+  {
+    "name": "West Concord",
+    "location": "Concord, MA",
+    "description": "Family neighborhood in Concord with parks and strong community"
+  },
+  {
+    "name": "Needham Heights",
+    "location": "Needham, MA",
+    "description": "Family-friendly neighborhood in Needham with parks and excellent schools"
+  },
+  {
+    "name": "Needham Center",
+    "location": "Needham, MA",
+    "description": "Downtown neighborhood in Needham with shops and community events"
+  },
+  {
+    "name": "Wayland Center",
+    "location": "Wayland, MA",
+    "description": "Historic neighborhood in Wayland with strong community and top schools"
+  },
+  {
+    "name": "Sudbury Center",
+    "location": "Sudbury, MA",
+    "description": "Upscale neighborhood in Sudbury with parks and excellent schools"
+  },
+  {
+    "name": "Acton Center",
+    "location": "Acton, MA",
+    "description": "Family-focused neighborhood in Acton with parks and good schools"
+  },
+  {
+    "name": "West Acton",
+    "location": "Acton, MA",
+    "description": "Quiet neighborhood in Acton with trails and family amenities"
+  },
+  {
+    "name": "Winchester Center",
+    "location": "Winchester, MA",
+    "description": "Affluent downtown neighborhood in Winchester with excellent schools"
+  },
+  {
+    "name": "Belmont Center",
+    "location": "Belmont, MA",
+    "description": "Diverse neighborhood in Belmont with parks and community amenities"
+  },
+  {
+    "name": "Waverley",
+    "location": "Belmont, MA",
+    "description": "Family-friendly neighborhood in Belmont with parks and good schools"
+  },
+  {
+    "name": "Watertown Square",
+    "location": "Watertown, MA",
+    "description": "Downtown neighborhood in Watertown with shops and community events"
+  },
+  {
+    "name": "East Watertown",
+    "location": "Watertown, MA",
+    "description": "Diverse neighborhood in Watertown with parks and trails"
+  },
+  {
+    "name": "Waltham Center",
+    "location": "Waltham, MA",
+    "description": "Downtown neighborhood in Waltham with universities and parks"
+  },
+  {
+    "name": "North Waltham",
+    "location": "Waltham, MA",
+    "description": "Family neighborhood in Waltham with parks and community amenities"
+  },
+  {
+    "name": "Woburn Center",
+    "location": "Woburn, MA",
+    "description": "Established downtown neighborhood in Woburn with shopping and parks"
+  },
+  {
+    "name": "Reading Center",
+    "location": "Reading, MA",
+    "description": "Family-friendly downtown neighborhood in Reading with excellent schools"
+  },
+  {
+    "name": "Wakefield Center",
+    "location": "Wakefield, MA",
+    "description": "Historic downtown neighborhood in Wakefield with community events"
+  },
+  {
+    "name": "Melrose Highlands",
+    "location": "Melrose, MA",
+    "description": "Upscale neighborhood in Melrose with parks and strong community"
+  },
+  {
+    "name": "Melrose Center",
+    "location": "Melrose, MA",
+    "description": "Downtown neighborhood in Melrose with shops and community spirit"
+  },
+  {
+    "name": "Medford Square",
+    "location": "Medford, MA",
+    "description": "Downtown neighborhood in Medford with parks and diverse community"
+  },
+  {
+    "name": "West Medford",
+    "location": "Medford, MA",
+    "description": "Family neighborhood in Medford with parks and trails"
+  },
+  {
+    "name": "Malden Center",
+    "location": "Malden, MA",
+    "description": "Downtown neighborhood in Malden with parks and strong community"
+  },
+  {
+    "name": "Revere Beach",
+    "location": "Revere, MA",
+    "description": "Coastal neighborhood in Revere with beaches and community events"
+  },
+  {
+    "name": "Quincy Center",
+    "location": "Quincy, MA",
+    "description": "Downtown neighborhood in Quincy with beaches, parks, and good schools"
+  },
+  {
+    "name": "Wollaston",
+    "location": "Quincy, MA",
+    "description": "Coastal neighborhood in Quincy with beaches and family amenities"
+  },
+  {
+    "name": "Braintree Square",
+    "location": "Braintree, MA",
+    "description": "Downtown neighborhood in Braintree with parks and shopping"
+  },
+  {
+    "name": "Weymouth Landing",
+    "location": "Weymouth, MA",
+    "description": "Coastal neighborhood in Weymouth with beaches and community events"
+  },
+  {
+    "name": "Hingham Harbor",
+    "location": "Hingham, MA",
+    "description": "Waterfront neighborhood in Hingham with excellent schools and parks"
+  },
+  {
+    "name": "Hingham Center",
+    "location": "Hingham, MA",
+    "description": "Historic downtown neighborhood in Hingham with charming architecture"
+  },
+  {
+    "name": "Milton Village",
+    "location": "Milton, MA",
+    "description": "Upscale neighborhood in Milton with parks and excellent schools"
+  },
+  {
+    "name": "Dedham Square",
+    "location": "Dedham, MA",
+    "description": "Historic downtown neighborhood in Dedham with parks and trails"
+  },
+  {
+    "name": "Norwood Center",
+    "location": "Norwood, MA",
+    "description": "Family-friendly downtown neighborhood in Norwood with parks"
+  },
+  {
+    "name": "Canton Center",
+    "location": "Canton, MA",
+    "description": "Suburban neighborhood in Canton with parks and community amenities"
+  },
+  {
+    "name": "Sharon Center",
+    "location": "Sharon, MA",
+    "description": "Affluent neighborhood in Sharon with parks and excellent schools"
+  },
+  {
+    "name": "Stoughton Center",
+    "location": "Stoughton, MA",
+    "description": "Family-friendly downtown neighborhood in Stoughton with community events"
+  },
+  {
+    "name": "Randolph Center",
+    "location": "Randolph, MA",
+    "description": "Diverse downtown neighborhood in Randolph with parks and community"
+  },
+  {
+    "name": "Holbrook Center",
+    "location": "Holbrook, MA",
+    "description": "Small town neighborhood in Holbrook with parks and family atmosphere"
+  }
+]
+

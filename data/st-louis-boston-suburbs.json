@@ -1,0 +1,253 @@
+[
+  {
+    "name": "O'Fallon",
+    "location": "St. Louis, MO",
+    "description": "Fast-growing suburban community with excellent schools and family amenities"
+  },
+  {
+    "name": "St. Charles",
+    "location": "St. Louis, MO",
+    "description": "Historic riverfront suburb with charming downtown and community events"
+  },
+  {
+    "name": "Wentzville",
+    "location": "St. Louis, MO",
+    "description": "Rapidly growing suburb with new developments and excellent schools"
+  },
+  {
+    "name": "Wildwood",
+    "location": "St. Louis, MO",
+    "description": "Affluent suburb with large lots, parks, and top-rated schools"
+  },
+  {
+    "name": "Town and Country",
+    "location": "St. Louis, MO",
+    "description": "Upscale suburban community with excellent schools and safety"
+  },
+  {
+    "name": "Creve Coeur",
+    "location": "St. Louis, MO",
+    "description": "Affluent suburb with parks, trails, and strong community"
+  },
+  {
+    "name": "Ladue",
+    "location": "St. Louis, MO",
+    "description": "Prestigious suburb with excellent schools and beautiful homes"
+  },
+  {
+    "name": "Olivette",
+    "location": "St. Louis, MO",
+    "description": "Small suburban community with parks and family-friendly atmosphere"
+  },
+  {
+    "name": "University City",
+    "location": "St. Louis, MO",
+    "description": "Diverse suburb with cultural amenities and strong community"
+  },
+  {
+    "name": "Florissant",
+    "location": "St. Louis, MO",
+    "description": "Established suburb with parks, recreation centers, and good schools"
+  },
+  {
+    "name": "Maryland Heights",
+    "location": "St. Louis, MO",
+    "description": "Suburban community with shopping, entertainment, and family amenities"
+  },
+  {
+    "name": "Fenton",
+    "location": "St. Louis, MO",
+    "description": "Family-friendly suburb with parks, trails, and community events"
+  },
+  {
+    "name": "Ellisville",
+    "location": "St. Louis, MO",
+    "description": "Quiet residential suburb with parks and excellent schools"
+  },
+  {
+    "name": "Eureka",
+    "location": "St. Louis, MO",
+    "description": "Small town suburb with historic charm and outdoor recreation"
+  },
+  {
+    "name": "Pacific",
+    "location": "St. Louis, MO",
+    "description": "Historic suburb with small-town feel and community spirit"
+  },
+  {
+    "name": "Des Peres",
+    "location": "St. Louis, MO",
+    "description": "Affluent suburb with shopping, dining, and excellent schools"
+  },
+  {
+    "name": "Richmond Heights",
+    "location": "St. Louis, MO",
+    "description": "Established suburb with parks, trails, and family amenities"
+  },
+  {
+    "name": "Brentwood",
+    "location": "St. Louis, MO",
+    "description": "Family-friendly suburb with parks and strong community"
+  },
+  {
+    "name": "Maplewood",
+    "location": "St. Louis, MO",
+    "description": "Diverse suburb with vibrant downtown and community events"
+  },
+  {
+    "name": "Shrewsbury",
+    "location": "St. Louis, MO",
+    "description": "Small residential suburb with parks and family atmosphere"
+  },
+  {
+    "name": "Wellesley",
+    "location": "Boston, MA",
+    "description": "Affluent suburb with excellent schools and cultural amenities"
+  },
+  {
+    "name": "Lexington",
+    "location": "Boston, MA",
+    "description": "Historic suburb known for excellent schools and community events"
+  },
+  {
+    "name": "Concord",
+    "location": "Boston, MA",
+    "description": "Historic town suburb with charming downtown and top schools"
+  },
+  {
+    "name": "Needham",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with excellent schools and parks"
+  },
+  {
+    "name": "Wayland",
+    "location": "Boston, MA",
+    "description": "Affluent suburb with top-rated schools and strong community"
+  },
+  {
+    "name": "Sudbury",
+    "location": "Boston, MA",
+    "description": "Upscale suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Acton",
+    "location": "Boston, MA",
+    "description": "Family-focused suburb with parks, trails, and good schools"
+  },
+  {
+    "name": "Winchester",
+    "location": "Boston, MA",
+    "description": "Affluent suburb with excellent schools and charming downtown"
+  },
+  {
+    "name": "Belmont",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with excellent schools and community amenities"
+  },
+  {
+    "name": "Watertown",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with parks, trails, and strong community"
+  },
+  {
+    "name": "Waltham",
+    "location": "Boston, MA",
+    "description": "Suburban city with universities, parks, and diverse community"
+  },
+  {
+    "name": "Woburn",
+    "location": "Boston, MA",
+    "description": "Established suburb with parks, shopping, and family amenities"
+  },
+  {
+    "name": "Reading",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with parks and excellent schools"
+  },
+  {
+    "name": "Wakefield",
+    "location": "Boston, MA",
+    "description": "Suburban community with parks, trails, and community events"
+  },
+  {
+    "name": "Melrose",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with charming downtown and strong community"
+  },
+  {
+    "name": "Medford",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with parks, trails, and community amenities"
+  },
+  {
+    "name": "Malden",
+    "location": "Boston, MA",
+    "description": "Diverse suburban city with parks and strong community"
+  },
+  {
+    "name": "Revere",
+    "location": "Boston, MA",
+    "description": "Coastal suburb with beaches, parks, and diverse community"
+  },
+  {
+    "name": "Quincy",
+    "location": "Boston, MA",
+    "description": "Coastal suburban city with beaches, parks, and good schools"
+  },
+  {
+    "name": "Braintree",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with parks, shopping, and good schools"
+  },
+  {
+    "name": "Weymouth",
+    "location": "Boston, MA",
+    "description": "Coastal suburb with beaches, parks, and community events"
+  },
+  {
+    "name": "Hingham",
+    "location": "Boston, MA",
+    "description": "Affluent coastal suburb with excellent schools and waterfront"
+  },
+  {
+    "name": "Milton",
+    "location": "Boston, MA",
+    "description": "Upscale suburb with excellent schools and family amenities"
+  },
+  {
+    "name": "Dedham",
+    "location": "Boston, MA",
+    "description": "Historic suburb with parks, trails, and strong community"
+  },
+  {
+    "name": "Norwood",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with parks, shopping, and good schools"
+  },
+  {
+    "name": "Canton",
+    "location": "Boston, MA",
+    "description": "Suburban community with parks, trails, and family amenities"
+  },
+  {
+    "name": "Sharon",
+    "location": "Boston, MA",
+    "description": "Affluent suburb with excellent schools and parks"
+  },
+  {
+    "name": "Stoughton",
+    "location": "Boston, MA",
+    "description": "Family-friendly suburb with parks and community events"
+  },
+  {
+    "name": "Randolph",
+    "location": "Boston, MA",
+    "description": "Diverse suburb with parks and strong community"
+  },
+  {
+    "name": "Holbrook",
+    "location": "Boston, MA",
+    "description": "Small suburban community with parks and family atmosphere"
+  }
+]
+
