@@ -25,7 +25,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://frabjous-kangaroo-1ef6be.netlify.app';
 app.use(cors({
   origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173', 'https://frabjous-kangaroo-1ef6be.netlify.app'],
   credentials: true
