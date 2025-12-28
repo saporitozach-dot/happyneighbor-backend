@@ -15,8 +15,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-  const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:3001';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://happyneighbor-api-production.up.railway.app/api';
+  const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'https://happyneighbor-api-production.up.railway.app';
 
   useEffect(() => {
     checkAuth();

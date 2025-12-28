@@ -1623,17 +1623,29 @@ app.post('/api/lookup-address', async (req, res) => {
     }
 
     // Basic address format validation - must have at least a number and street name
-    const addressPattern = /^\d+\s+\w+/;
-    if (!addressPattern.test(address.trim())) {
+    const addressPattern = /^(\d+)\s+(.+?)(?:,\s*|$)/;
+    const match = address.trim().match(addressPattern);
+    if (!match) {
       return res.json({
         success: false,
         error: 'Please enter a valid street address starting with a house number (e.g., "123 Main Street, City, State")'
       });
     }
 
-    // Geocode the address using OpenStreetMap Nominatim (free, no API key required)
+    // Extract house number and street name from input for validation
+    const inputHouseNumber = parseInt(match[1].replace(/,/g, ''), 10);
+    // Get street name words (remove common suffixes like "Street", "Avenue" for matching)
+    const inputStreetName = match[2].trim();
+    const inputStreetWords = inputStreetName.toLowerCase()
+      .replace(/\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|way|boulevard|blvd|court|ct|circle|cir|place|pl)\b/gi, '')
+      .trim()
+      .split(/\s+/)
+      .filter(w => w.length > 1);
+
+    // Geocode using OpenStreetMap Nominatim with strict validation
+    // We'll validate the response to ensure it's a real address
     const encodedAddress = encodeURIComponent(address);
-    const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&addressdetails=1&limit=5&countrycodes=us`;
+    const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&addressdetails=1&limit=10&countrycodes=us`;
     
     const geocodeResponse = await fetch(geocodeUrl, {
       headers: {
@@ -1657,22 +1669,57 @@ app.post('/api/lookup-address', async (req, res) => {
       });
     }
 
-    // Find the best result with a street address
+    // VALIDATION: Focus on street name and city matching (relaxed house number validation)
+    // Goal: Verify the street and city exist and match, prevent lying about location
     let bestResult = null;
+    
+    // Extract city from input address (usually after the last comma)
+    const addressParts = address.toLowerCase().split(',');
+    const inputCity = addressParts.length > 1 ? addressParts[addressParts.length - 2].trim() : null;
+    const inputState = addressParts.length > 1 ? addressParts[addressParts.length - 1].trim() : null;
+    
     for (const result of geocodeData) {
       const addr = result.address || {};
-      // Must have a road/street and house number for a valid street address
-      if ((addr.road || addr.street) && addr.house_number) {
+      
+      // MUST have a road/street name
+      const geocodedStreet = (addr.road || addr.street || '').toLowerCase();
+      if (!geocodedStreet) {
+        continue;
+      }
+      
+      // MUST have a city
+      const geocodedCity = (addr.city || addr.town || addr.village || addr.municipality || '').toLowerCase();
+      if (!geocodedCity) {
+        continue;
+      }
+      
+      // Verify street name matches (check if key words from input street appear in geocoded street)
+      const streetMatches = inputStreetWords.length > 0 && inputStreetWords.some(word => 
+        geocodedStreet.includes(word)
+      );
+      
+      // Verify city matches (fuzzy match)
+      const cityMatches = inputCity && (
+        geocodedCity.includes(inputCity) || 
+        inputCity.includes(geocodedCity) ||
+        geocodedCity.replace(/\s+(city|town|village)$/i, '') === inputCity.replace(/\s+(city|town|village)$/i, '')
+      );
+      
+      // Accept if street and city match (house number validation relaxed)
+      if (streetMatches && cityMatches) {
         bestResult = result;
-        break;
+        break; // Found matching street and city - valid address!
       }
     }
     
+    // REJECT if no matching street/city found
     if (!bestResult) {
-      // Fall back to first result with road
-      bestResult = geocodeData.find(r => r.address?.road || r.address?.street) || geocodeData[0];
+      return res.json({
+        success: false,
+        error: 'This address could not be verified. The street name or city does not match any verified addresses. Please check your spelling and try again.'
+      });
     }
-
+    
     const addressDetails = bestResult.address || {};
     
     // Extract components
@@ -2336,3 +2383,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
 });
+
