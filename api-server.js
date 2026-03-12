@@ -6,40 +6,149 @@ import { dirname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import passport from 'passport';
 import linkedinOAuth2Module from 'passport-linkedin-oauth2';
-import googleOAuth2Module from 'passport-google-oauth20';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import multer from 'multer';
+import Stripe from 'stripe';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+
+// Password hashing for email/password auth
+const hashPassword = (password) => {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+};
+const verifyPassword = (password, stored) => {
+  if (!stored || !stored.includes(':')) return false;
+  const [salt, hash] = stored.split(':');
+  const verify = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return hash === verify;
+};
 
 // Fix for ES module import - passport-linkedin-oauth2 exports differently in ES modules
 const LinkedInStrategy = linkedinOAuth2Module.default?.Strategy || linkedinOAuth2Module.Strategy || linkedinOAuth2Module;
-const GoogleStrategy = googleOAuth2Module.default?.Strategy || googleOAuth2Module.Strategy || googleOAuth2Module;
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Initialize Stripe (optional for local development)
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2024-12-18.acacia',
+  });
+} else {
+  console.log('⚠️  Stripe not configured. Payment features will be disabled.');
+}
+
+// Initialize email transporter (using Gmail for demo - configure with your email service)
+let emailTransporter = null;
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  emailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+// Email helper functions
+const sendEmail = async (to, subject, html) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send:', { to, subject });
+    return false;
+  }
+  
+  try {
+    await emailTransporter.sendMail({
+      from: process.env.SMTP_USER,
+      to,
+      subject,
+      html,
+    });
+    return true;
+  } catch (error) {
+    console.error('Email send error:', error);
+    return false;
+  }
+};
+
+const sendSurveyVerifiedEmail = async (email, streetName, city, state) => {
+  const subject = 'Your Street Review Has Been Verified! 🎉';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #f97316;">Your Review is Live!</h2>
+      <p>Great news! Your review for <strong>${streetName}</strong> in ${city}, ${state} has been verified and is now live on Happy Neighbor.</p>
+      <p>Your insights are helping others find their perfect neighborhood match. Thank you for contributing!</p>
+      <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/street/${streetName}" 
+         style="display: inline-block; padding: 12px 24px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
+        View Your Street Profile
+      </a>
+      <p style="margin-top: 30px; color: #666; font-size: 14px;">
+        - The Happy Neighbor Team
+      </p>
+    </div>
+  `;
+  return await sendEmail(email, subject, html);
+};
+
+const sendWelcomeEmail = async (email, name) => {
+  const subject = 'Welcome to Happy Neighbor! 🏠';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #f97316;">Welcome, ${name || 'there'}!</h2>
+      <p>Thanks for joining Happy Neighbor! We're excited to help you find streets that match your lifestyle.</p>
+      <p>Get started by taking our quick survey to see your personalized street matches.</p>
+      <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/survey" 
+         style="display: inline-block; padding: 12px 24px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
+        Take the Survey
+      </a>
+      <p style="margin-top: 30px; color: #666; font-size: 14px;">
+        - The Happy Neighbor Team
+      </p>
+    </div>
+  `;
+  return await sendEmail(email, subject, html);
+};
+
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
 
 // Middleware
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://frabjous-kangaroo-1ef6be.netlify.app';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const ALLOWED_ORIGINS = [
+  FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  ...(process.env.ADDITIONAL_ORIGINS ? process.env.ADDITIONAL_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])
+].filter(Boolean);
+const isLocalNetwork = (origin) => /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173', 'https://frabjous-kangaroo-1ef6be.netlify.app'],
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || isLocalNetwork(origin)) cb(null, true);
+    else cb(null, false);
+  },
   credentials: true
 }));
 app.use(express.json());
 app.use(cookieParser());
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(session({
   secret: process.env.SESSION_SECRET || 'happy-neighbor-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
+    secure: isProduction,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: isProduction ? 'lax' : 'lax'
   }
 }));
 app.use(passport.initialize());
@@ -231,6 +340,85 @@ try {
   // Column already exists, ignore
 }
 
+// Add payment/premium columns to users table
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN premium_access INTEGER DEFAULT 0').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN premium_expires_at DATETIME').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN stripe_customer_id TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN password_hash TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN verified_address TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE users ADD COLUMN verified_street_id INTEGER').run();
+} catch (e) {}
+
+// Create payments table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    stripe_payment_intent_id TEXT UNIQUE,
+    amount INTEGER,
+    currency TEXT DEFAULT 'usd',
+    status TEXT,
+    product_type TEXT DEFAULT 'matches_unlock',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS saved_streets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    street_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (street_id) REFERENCES streets(id) ON DELETE CASCADE,
+    UNIQUE(user_id, street_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS review_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    survey_id INTEGER NOT NULL,
+    user_id INTEGER,
+    vote_type TEXT CHECK(vote_type IN ('upvote', 'downvote')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (survey_id) REFERENCES resident_surveys(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, survey_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS leads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    source TEXT,
+    street_ids TEXT,
+    metadata_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    plan_type TEXT DEFAULT 'premium',
+    status TEXT DEFAULT 'active',
+    stripe_subscription_id TEXT,
+    current_period_start DATETIME,
+    current_period_end DATETIME,
+    cancel_at_period_end INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
 // Add new columns to neighborhoods table
 try {
   db.prepare('ALTER TABLE neighborhoods ADD COLUMN city TEXT').run();
@@ -324,6 +512,280 @@ try {
 try {
   db.prepare('ALTER TABLE resident_surveys ADD COLUMN submitter_email TEXT').run();
 } catch (e) {}
+
+// Add public_education column to user_preferences
+try {
+  db.prepare('ALTER TABLE user_preferences ADD COLUMN public_education TEXT').run();
+} catch (e) {}
+
+// Add public_education column to resident_surveys
+try {
+  db.prepare('ALTER TABLE resident_surveys ADD COLUMN public_education TEXT').run();
+} catch (e) {}
+
+// Add new survey fields: safety, neighbor_familiarity, lawn_space
+try {
+  db.prepare('ALTER TABLE resident_surveys ADD COLUMN safety TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE resident_surveys ADD COLUMN neighbor_familiarity TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE resident_surveys ADD COLUMN lawn_space TEXT').run();
+} catch (e) {}
+
+// Add new fields to user_preferences
+try {
+  db.prepare('ALTER TABLE user_preferences ADD COLUMN safety TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE user_preferences ADD COLUMN neighbor_familiarity TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE user_preferences ADD COLUMN lawn_space TEXT').run();
+} catch (e) {}
+
+// Add pricing columns to streets table
+try {
+  db.prepare('ALTER TABLE streets ADD COLUMN avg_home_price INTEGER').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE streets ADD COLUMN avg_price_per_sqft INTEGER').run();
+} catch (e) {}
+
+// Populate mock pricing data for streets that don't have it
+try {
+  const streetsWithoutPricing = db.prepare('SELECT id, city, state FROM streets WHERE avg_home_price IS NULL').all();
+  
+  if (streetsWithoutPricing.length > 0) {
+    console.log(`Populating mock pricing data for ${streetsWithoutPricing.length} streets...`);
+    
+    // State-based price multipliers (relative to national average)
+    const statePriceMultipliers = {
+      'CA': 2.2, 'NY': 1.8, 'MA': 1.7, 'WA': 1.6, 'CO': 1.5,
+      'NJ': 1.5, 'CT': 1.4, 'MD': 1.3, 'VA': 1.2, 'FL': 1.1,
+      'TX': 0.95, 'AZ': 1.1, 'NC': 0.9, 'GA': 0.95, 'PA': 0.85,
+      'IL': 0.9, 'OH': 0.7, 'MI': 0.7, 'IN': 0.7, 'TN': 0.85,
+      'MO': 0.75, 'WI': 0.8, 'MN': 0.9, 'OR': 1.4, 'NV': 1.2,
+      'UT': 1.3, 'SC': 0.85, 'AL': 0.65, 'KY': 0.7, 'LA': 0.75
+    };
+    
+    const updateStmt = db.prepare('UPDATE streets SET avg_home_price = ?, avg_price_per_sqft = ? WHERE id = ?');
+    
+    for (const street of streetsWithoutPricing) {
+      const multiplier = statePriceMultipliers[street.state] || 1.0;
+      // Base price around $350,000 with variance
+      const basePrice = 350000;
+      const variance = (Math.random() - 0.5) * 150000; // +/- $75,000
+      const avgPrice = Math.round((basePrice * multiplier + variance) / 1000) * 1000;
+      
+      // Price per sqft: typically $150-400 depending on market
+      const basePricePerSqft = 200;
+      const sqftVariance = (Math.random() - 0.5) * 100;
+      const avgPricePerSqft = Math.round(basePricePerSqft * multiplier + sqftVariance);
+      
+      updateStmt.run(avgPrice, avgPricePerSqft, street.id);
+    }
+    
+    console.log('Mock pricing data populated successfully!');
+  }
+} catch (e) {
+  console.error('Error populating pricing data:', e);
+}
+
+// Populate demo survey data for testing matching
+try {
+  const existingSurveys = db.prepare("SELECT COUNT(*) as count FROM resident_surveys WHERE verification_status = 'verified'").get();
+  
+  // Only populate if we have less than 50 verified surveys
+  if (existingSurveys.count < 50) {
+    console.log('Populating demo survey data...');
+    
+    const streets = db.prepare('SELECT id, name, city, state, neighborhood_id FROM streets LIMIT 100').all();
+    
+    if (streets.length > 0) {
+      // Define diverse survey response profiles
+      const surveyProfiles = [
+        // Quiet, family-friendly, suburban profile
+        {
+          noise_level: 'Very Quiet',
+          walkability: 'Somewhat Walkable',
+          safety: 'Very Safe',
+          kids_friendly: 'Very Family-Friendly',
+          public_education: 'Excellent',
+          events: 'Occasional',
+          lawn_space: 'Very Large Yards',
+          neighbor_familiarity: 'Often',
+          notes: 'Perfect for families with young children. Great schools and safe environment.'
+        },
+        // Urban, walkable, social profile
+        {
+          noise_level: 'Lively',
+          walkability: 'Very Walkable',
+          safety: 'Safe',
+          kids_friendly: 'Some Families',
+          public_education: 'Good',
+          events: 'Very Active',
+          lawn_space: 'Small Yards',
+          neighbor_familiarity: 'Sometimes',
+          notes: 'Vibrant neighborhood with lots of restaurants and cafes nearby.'
+        },
+        // Suburban, quiet, private profile
+        {
+          noise_level: 'Quiet',
+          walkability: 'Not Walkable',
+          safety: 'Very Safe',
+          kids_friendly: 'Family-Friendly',
+          public_education: 'Good',
+          events: 'None',
+          lawn_space: 'Large Yards',
+          neighbor_familiarity: 'Rarely',
+          notes: 'Peaceful and private. Everyone keeps to themselves.'
+        },
+        // Active community, family-oriented
+        {
+          noise_level: 'Moderate',
+          walkability: 'Walkable',
+          safety: 'Safe',
+          kids_friendly: 'Very Family-Friendly',
+          public_education: 'Good',
+          events: 'Regular',
+          lawn_space: 'Large Yards',
+          neighbor_familiarity: 'Often',
+          notes: 'Great sense of community! Block parties every summer and regular BBQs.'
+        },
+        // Urban, very social, young professionals
+        {
+          noise_level: 'Lively',
+          walkability: 'Very Walkable',
+          safety: 'Somewhat Safe',
+          kids_friendly: 'Not Family-Friendly',
+          public_education: 'Average',
+          events: 'Very Active',
+          lawn_space: 'Small Yards',
+          neighbor_familiarity: 'Sometimes',
+          notes: 'Lots of nightlife and social events. Great for young professionals.'
+        },
+        // Quiet, walkable, family-friendly
+        {
+          noise_level: 'Quiet',
+          walkability: 'Very Walkable',
+          safety: 'Very Safe',
+          kids_friendly: 'Very Family-Friendly',
+          public_education: 'Excellent',
+          events: 'Regular',
+          lawn_space: 'Moderate Yards',
+          neighbor_familiarity: 'Often',
+          notes: 'Best of both worlds - quiet but walkable. Excellent schools and community.'
+        },
+        // Moderate everything, balanced
+        {
+          noise_level: 'Moderate',
+          walkability: 'Walkable',
+          safety: 'Safe',
+          kids_friendly: 'Family-Friendly',
+          public_education: 'Good',
+          events: 'Occasional',
+          lawn_space: 'Moderate Yards',
+          neighbor_familiarity: 'Sometimes',
+          notes: 'Nice balanced neighborhood. Not too quiet, not too loud.'
+        },
+        // Very quiet, private, suburban
+        {
+          noise_level: 'Very Quiet',
+          walkability: 'Somewhat Walkable',
+          safety: 'Very Safe',
+          kids_friendly: 'Family-Friendly',
+          public_education: 'Good',
+          events: 'None',
+          lawn_space: 'Large Yards',
+          neighbor_familiarity: 'Rarely',
+          notes: 'Extremely quiet and peaceful. Perfect for those who value privacy.'
+        },
+        // Active, social, community-focused
+        {
+          noise_level: 'Moderate',
+          walkability: 'Walkable',
+          safety: 'Safe',
+          kids_friendly: 'Very Family-Friendly',
+          public_education: 'Good',
+          events: 'Very Active',
+          lawn_space: 'Moderate Yards',
+          neighbor_familiarity: 'Often',
+          notes: 'Incredible community spirit! Everyone knows everyone and there are always events happening.'
+        },
+        // Urban, walkable, moderate social
+        {
+          noise_level: 'Lively',
+          walkability: 'Very Walkable',
+          safety: 'Safe',
+          kids_friendly: 'Some Families',
+          public_education: 'Average',
+          events: 'Regular',
+          lawn_space: 'Small Yards',
+          neighbor_familiarity: 'Sometimes',
+          notes: 'Great location with lots of amenities within walking distance.'
+        }
+      ];
+      
+      const insertStmt = db.prepare(`
+        INSERT INTO resident_surveys 
+        (street_id, neighborhood_id, resident_name, address, submitter_email, noise_level, walkability, safety, 
+         kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes, 
+         address_verified, verification_status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'verified', datetime('now', '-' || ? || ' days'))
+      `);
+      
+      let surveyCount = 0;
+      const residentNames = ['Sarah M.', 'Michael C.', 'Jennifer R.', 'David L.', 'Emily K.', 
+                            'Robert T.', 'Lisa P.', 'James W.', 'Maria G.', 'Thomas H.'];
+      
+      // Add 2-4 surveys per street with different profiles
+      for (const street of streets) {
+        const numSurveys = Math.floor(Math.random() * 3) + 2; // 2-4 surveys per street
+        
+        for (let i = 0; i < numSurveys; i++) {
+          const profile = surveyProfiles[Math.floor(Math.random() * surveyProfiles.length)];
+          const residentName = residentNames[Math.floor(Math.random() * residentNames.length)];
+          const houseNumber = Math.floor(Math.random() * 500) + 1;
+          const address = `${houseNumber} ${street.name}`;
+          const daysAgo = Math.floor(Math.random() * 90); // Surveys from last 90 days
+          
+          try {
+            const email = `demo${surveyCount}@happyneighbor.com`;
+            insertStmt.run(
+              street.id,
+              street.neighborhood_id,
+              residentName,
+              address,
+              email,
+              profile.noise_level,
+              profile.walkability,
+              profile.safety,
+              profile.kids_friendly,
+              profile.public_education,
+              profile.events,
+              profile.lawn_space,
+              profile.neighbor_familiarity,
+              profile.notes,
+              daysAgo
+            );
+            surveyCount++;
+          } catch (e) {
+            // Skip duplicates or errors
+            console.warn(`Skipped survey for street ${street.id}: ${e.message}`);
+          }
+        }
+      }
+      
+      console.log(`✅ Populated ${surveyCount} demo surveys across ${streets.length} streets!`);
+    }
+  } else {
+    console.log(`Demo surveys already exist (${existingSurveys.count} verified surveys found).`);
+  }
+} catch (e) {
+  console.error('Error populating demo survey data:', e);
+}
 
 // Make linkedin_id nullable for Google users (SQLite doesn't support this directly, so we handle it in code)
 try {
@@ -439,78 +901,21 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
   console.warn('⚠️  LinkedIn OAuth credentials not set. Please set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in .env file');
 }
 
-// Google OAuth Strategy
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3001/auth/google/callback",
-    scope: ['profile', 'email']
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      const googleId = profile.id;
-      const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
-      const firstName = profile.name?.givenName || null;
-      const lastName = profile.name?.familyName || null;
-      const fullName = profile.displayName || `${firstName} ${lastName}`.trim();
-      const profilePicture = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
-
-      // Check if user exists by google_id or email
-      let user = db.prepare('SELECT * FROM users WHERE google_id = ?').get(googleId);
-      
-      // Also check by email in case they previously signed up with LinkedIn
-      if (!user && email) {
-        user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-        if (user) {
-          // Link Google account to existing user
-          db.prepare('UPDATE users SET google_id = ?, auth_provider = ? WHERE id = ?').run(googleId, 'google', user.id);
-        }
-      }
-
-      if (user) {
-        // Update existing user
-        db.prepare(`
-          UPDATE users 
-          SET email = ?, first_name = ?, last_name = ?, full_name = ?, 
-              profile_picture = ?, google_id = ?, auth_provider = ?,
-              access_token = ?, refresh_token = ?, 
-              last_login = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).run(email, firstName, lastName, fullName, profilePicture, googleId, 'google', accessToken, refreshToken || null, user.id);
-        
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-      } else {
-        // Create new user with Google
-        const result = db.prepare(`
-          INSERT INTO users (google_id, linkedin_id, email, first_name, last_name, full_name, 
-                           profile_picture, auth_provider, access_token, refresh_token, last_login)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `).run(googleId, 'google-' + googleId, email, firstName, lastName, fullName, profilePicture, 'google', accessToken, refreshToken || null);
-        
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
-      }
-
-      return done(null, user);
-    } catch (error) {
-      console.error('Google OAuth error:', error);
-      return done(error, null);
-    }
-  }
-  ));
-} else {
-  console.warn('⚠️  Google OAuth credentials not set. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file');
-}
 
 // Helper function to aggregate survey responses into neighborhood profile
-function aggregateSurveys(neighborhoodId) {
-  const surveys = db.prepare('SELECT * FROM resident_surveys WHERE neighborhood_id = ?').all(neighborhoodId);
+function aggregateSurveys(neighborhoodId, includePending = true) {
+  // Include pending surveys for matching/demo purposes
+  let query = `SELECT * FROM resident_surveys WHERE neighborhood_id = ?`;
+  if (!includePending) {
+    query += ` AND verification_status = 'verified'`;
+  }
+  const surveys = db.prepare(query).all(neighborhoodId);
   
   if (surveys.length === 0) {
     return null;
   }
 
-  const criteria = ['noise_level', 'sociability', 'events', 'kids_friendly', 'walkability', 'cookouts', 'nightlife'];
+  const criteria = ['noise_level', 'walkability', 'safety', 'kids_friendly', 'public_education', 'events', 'lawn_space', 'neighbor_familiarity'];
   const aggregated = {};
 
   criteria.forEach(criterion => {
@@ -542,19 +947,69 @@ function aggregateSurveys(neighborhoodId) {
   };
 }
 
-// Helper function to calculate match score
+// Helper function to aggregate survey responses for a street
+function aggregateStreetSurveys(streetId, includePending = true) {
+  // Get surveys for this street (include pending for matching/demo purposes)
+  let query = `SELECT * FROM resident_surveys WHERE street_id = ?`;
+  let params = [streetId];
+  
+  if (!includePending) {
+    query += ` AND verification_status = 'verified'`;
+  }
+  
+  const surveys = db.prepare(query).all(...params);
+  
+  if (surveys.length === 0) {
+    return null;
+  }
+
+  const criteria = ['noise_level', 'walkability', 'safety', 'kids_friendly', 'public_education', 'events', 'lawn_space', 'neighbor_familiarity'];
+  const aggregated = {};
+
+  criteria.forEach(criterion => {
+    const values = surveys.map(s => s[criterion]).filter(v => v);
+    if (values.length > 0) {
+      // Count occurrences of each value
+      const counts = {};
+      values.forEach(v => {
+        counts[v] = (counts[v] || 0) + 1;
+      });
+      
+      // Find the most common value (mode)
+      let maxCount = 0;
+      let mostCommon = null;
+      Object.keys(counts).forEach(key => {
+        if (counts[key] > maxCount) {
+          maxCount = counts[key];
+          mostCommon = key;
+        }
+      });
+      
+      aggregated[criterion] = mostCommon;
+    }
+  });
+
+  return {
+    ...aggregated,
+    survey_count: surveys.length
+  };
+}
+
+// Helper function to calculate match score with category breakdowns
 function calculateMatchScore(neighborhoodProfile, preferences) {
-  let score = 0;
+  let totalScore = 0;
   let totalCriteria = 0;
+  const categoryScores = {};
 
   const fieldMapping = {
     noise: 'noise_level',
-    sociability: 'sociability',
-    events: 'events',
-    kids: 'kids_friendly',
     walkability: 'walkability',
-    cookouts: 'cookouts',
-    nightlife: 'nightlife'
+    safety: 'safety',
+    kids_friendly: 'kids_friendly',
+    public_education: 'public_education',
+    events: 'events',
+    lawn_space: 'lawn_space',
+    neighbor_familiarity: 'neighbor_familiarity'
   };
   
   Object.keys(fieldMapping).forEach(prefKey => {
@@ -564,36 +1019,133 @@ function calculateMatchScore(neighborhoodProfile, preferences) {
       const pref = preferences[prefKey].toLowerCase();
       const neigh = neighborhoodProfile[dbKey].toLowerCase();
       
-      // Exact match
-      if (pref === neigh) {
-        score += 100;
-      } 
-      // Partial match (similar meanings)
-      else if (
-        (pref.includes('very') && neigh.includes('very')) ||
-        (pref.includes('quiet') && neigh.includes('quiet')) ||
-        (pref.includes('social') && neigh.includes('social')) ||
-        (pref.includes('active') && neigh.includes('active')) ||
-        (pref.includes('important') && neigh.includes('important'))
-      ) {
-        score += 80;
-      } 
-      // Somewhat related
-      else if (
-        (pref.includes('moderate') && neigh.includes('moderate')) ||
-        (pref.includes('somewhat') && neigh.includes('somewhat')) ||
-        (pref.includes('occasional') && neigh.includes('occasional'))
-      ) {
-        score += 60;
+      let categoryScore = 0;
+      
+      // Special handling for fields where user provides importance and street provides reality
+      if (prefKey === 'kids_friendly') {
+        // User: "Very Important" -> Street: "Very Family-Friendly" = perfect match
+        // User: "Important" -> Street: "Family-Friendly" = good match
+        // User: "Not Important" -> Street: "Not Family-Friendly" = good match (they don't care, so it's fine)
+        if ((pref.includes('very important') && (neigh.includes('very') && neigh.includes('friendly'))) ||
+            (pref.includes('important') && neigh.includes('family-friendly') && !neigh.includes('not'))) {
+          categoryScore = 100;
+        } else if ((pref.includes('somewhat important') && neigh.includes('family-friendly')) ||
+                   (pref.includes('not important'))) {
+          categoryScore = 80; // They don't care much, so any answer is acceptable
+        } else if (pref.includes('important') && neigh.includes('some families')) {
+          categoryScore = 70;
+        } else {
+          categoryScore = 40; // Mismatch
+        }
+      } else if (prefKey === 'neighbor_familiarity') {
+        // User: "Very Important" -> Street: "Often" = perfect match
+        // User: "Important" -> Street: "Sometimes" or "Often" = good match
+        // User: "Not Important" -> Street: "Never" or "Rarely" = good match (they don't care)
+        if ((pref.includes('very important') && neigh.includes('often')) ||
+            (pref.includes('important') && (neigh.includes('sometimes') || neigh.includes('often'))) ||
+            (pref.includes('not important') && (neigh.includes('never') || neigh.includes('rarely')))) {
+          categoryScore = 100;
+        } else if ((pref.includes('somewhat important') && (neigh.includes('sometimes') || neigh.includes('often'))) ||
+                   (pref.includes('not important'))) {
+          categoryScore = 80;
+        } else {
+          categoryScore = 50; // Partial mismatch
+        }
+      } else if (prefKey === 'lawn_space') {
+        // User: "Very Important" -> Street: "Very Large Yards" = perfect match
+        // User: "Important" -> Street: "Large Yards" or "Very Large Yards" = good match
+        // User: "Not Important" -> Street: "Small Yards" = good match (they don't care)
+        if ((pref.includes('very important') && neigh.includes('very large')) ||
+            (pref.includes('important') && neigh.includes('large') && !neigh.includes('small'))) {
+          categoryScore = 100;
+        } else if ((pref.includes('somewhat important') && (neigh.includes('large') || neigh.includes('moderate'))) ||
+                   (pref.includes('not important'))) {
+          categoryScore = 80;
+        } else if (pref.includes('important') && neigh.includes('moderate')) {
+          categoryScore = 70;
+        } else {
+          categoryScore = 50; // Partial mismatch
+        }
+      } else if (prefKey === 'safety') {
+        // User: "Very Important" -> Street: "Very Safe" = perfect match
+        // User: "Important" -> Street: "Safe" or "Very Safe" = good match
+        // User: "Not Important" -> Street: any = acceptable (they don't care)
+        if ((pref.includes('very important') && neigh.includes('very safe')) ||
+            (pref.includes('important') && (neigh.includes('safe') && !neigh.includes('not')))) {
+          categoryScore = 100;
+        } else if ((pref.includes('somewhat important') && (neigh.includes('safe') || neigh.includes('somewhat safe'))) ||
+                   (pref.includes('not important'))) {
+          categoryScore = 80;
+        } else if (pref.includes('important') && neigh.includes('somewhat safe')) {
+          categoryScore = 70;
+        } else {
+          categoryScore = 40; // Mismatch - they care about safety but street isn't safe
+        }
+      } else if (prefKey === 'public_education') {
+        // User: "Very Important" -> Street: "Excellent" = perfect match
+        // User: "Important" -> Street: "Good" or "Excellent" = good match
+        // User: "Not Important" -> Street: any = acceptable (they don't care)
+        if ((pref.includes('very important') && neigh.includes('excellent')) ||
+            (pref.includes('important') && (neigh.includes('good') || neigh.includes('excellent')))) {
+          categoryScore = 100;
+        } else if ((pref.includes('somewhat important') && (neigh.includes('good') || neigh.includes('average'))) ||
+                   (pref.includes('not important'))) {
+          categoryScore = 80;
+        } else if (pref.includes('important') && neigh.includes('average')) {
+          categoryScore = 70;
+        } else if (pref.includes('important') && (neigh.includes('poor') || neigh.includes('below average'))) {
+          categoryScore = 30; // They care but schools are poor
+        } else {
+          categoryScore = 50; // Partial mismatch
+        }
+      } else {
+        // Standard matching for other fields (noise, walkability, safety, events, public_education)
+        // Exact match
+        if (pref === neigh) {
+          categoryScore = 100;
+        } 
+        // Partial match (similar meanings)
+        else if (
+          (pref.includes('very') && neigh.includes('very')) ||
+          (pref.includes('quiet') && neigh.includes('quiet')) ||
+          (pref.includes('social') && neigh.includes('social')) ||
+          (pref.includes('active') && neigh.includes('active')) ||
+          (pref.includes('important') && neigh.includes('important')) ||
+          (pref.includes('safe') && neigh.includes('safe')) ||
+          (pref.includes('regular') && neigh.includes('regular')) ||
+          (pref.includes('lively') && neigh.includes('lively')) ||
+          (pref.includes('walkable') && neigh.includes('walkable'))
+        ) {
+          categoryScore = 80;
+        } 
+        // Somewhat related
+        else if (
+          (pref.includes('moderate') && neigh.includes('moderate')) ||
+          (pref.includes('somewhat') && neigh.includes('somewhat')) ||
+          (pref.includes('occasional') && neigh.includes('occasional')) ||
+          (pref.includes('sometimes') && neigh.includes('sometimes'))
+        ) {
+          categoryScore = 60;
+        }
+        // Default partial score
+        else {
+          categoryScore = 40;
+        }
       }
-      // Default partial score
-      else {
-        score += 40;
-      }
+      
+      totalScore += categoryScore;
+      categoryScores[prefKey] = categoryScore;
+    } else {
+      categoryScores[prefKey] = null;
     }
   });
 
-  return totalCriteria > 0 ? Math.round(score / totalCriteria) : 0;
+  const overallScore = totalCriteria > 0 ? Math.round(totalScore / totalCriteria) : 0;
+  
+  return {
+    overall: overallScore,
+    categories: categoryScores
+  };
 }
 
 // Authentication Routes
@@ -696,6 +1248,13 @@ app.get('/auth/linkedin/callback', async (req, res) => {
               profileUrl, accessToken, tokenData.refresh_token || null);
       
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+      
+      // Send welcome email
+      if (email) {
+        sendWelcomeEmail(email, fullName || firstName).catch(err => 
+          console.error('Failed to send welcome email:', err)
+        );
+      }
     }
 
     // Log user in
@@ -712,19 +1271,6 @@ app.get('/auth/linkedin/callback', async (req, res) => {
     res.redirect(`${FRONTEND_URL}/login?error=callback_error`);
   }
 });
-
-// Google OAuth Routes
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login?error=google_failed` }),
-  (req, res) => {
-    // Successful authentication
-    res.redirect(`${FRONTEND_URL}/profile?login=success`);
-  }
-);
 
 // Get current user
 app.get('/api/auth/me', (req, res) => {
@@ -753,6 +1299,162 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
+// Register (email + password)
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { email, password, full_name, address } = req.body;
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ error: 'Email, password, and name are required' });
+    }
+    const emailNorm = email.trim().toLowerCase();
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(emailNorm);
+    if (existing) {
+      return res.status(400).json({ error: 'An account with this email already exists' });
+    }
+    const linkedinId = 'local_' + emailNorm;
+    const passwordHash = hashPassword(password);
+    const nameParts = (full_name || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    db.prepare(`
+      INSERT INTO users (linkedin_id, email, first_name, last_name, full_name, password_hash, auth_provider, verified_address)
+      VALUES (?, ?, ?, ?, ?, ?, 'local', ?)
+    `).run(linkedinId, emailNorm, firstName, lastName, (full_name || '').trim(), passwordHash, address ? String(address).trim() : null);
+    const user = db.prepare('SELECT id, email, first_name, last_name, full_name FROM users WHERE id = ?').get(db.prepare('SELECT last_insert_rowid()').pluck().get());
+    req.login(user, (err) => {
+      if (err) return res.status(500).json({ error: 'Session creation failed' });
+      res.json({ success: true, user: { id: user.id, email: user.email, full_name: user.full_name } });
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Login (email + password)
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    const emailNorm = email.trim().toLowerCase();
+    const user = db.prepare('SELECT * FROM users WHERE (LOWER(email) = ? OR linkedin_id = ?) AND password_hash IS NOT NULL').get(emailNorm, 'local_' + emailNorm);
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+    const { password_hash, access_token, refresh_token, ...safeUser } = user;
+    req.login(safeUser, (err) => {
+      if (err) return res.status(500).json({ error: 'Session creation failed' });
+      res.json({ success: true, user: { id: safeUser.id, email: safeUser.email, full_name: safeUser.full_name } });
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Dev: Seed database with sample streets and surveys (for prototype demos)
+app.post('/api/dev/seed', (req, res) => {
+  try {
+    const streets = [
+      { name: 'Maple Avenue', city: 'Boston', state: 'MA', full_address: 'Maple Avenue, Boston, MA', lat: 42.3601, lng: -71.0589 },
+      { name: 'Oak Street', city: 'Portland', state: 'OR', full_address: 'Oak Street, Portland, OR', lat: 45.5152, lng: -122.6784 },
+      { name: 'Park Boulevard', city: 'Seattle', state: 'WA', full_address: 'Park Boulevard, Seattle, WA', lat: 47.6062, lng: -122.3321 },
+      { name: 'Elm Drive', city: 'Austin', state: 'TX', full_address: 'Elm Drive, Austin, TX', lat: 30.2672, lng: -97.7431 },
+      { name: 'Main Street', city: 'Denver', state: 'CO', full_address: 'Main Street, Denver, CO', lat: 39.7392, lng: -104.9903 },
+      { name: 'Cedar Lane', city: 'Boston', state: 'MA', full_address: 'Cedar Lane, Boston, MA', lat: 42.3601, lng: -71.0589 },
+      { name: 'Pine Avenue', city: 'Portland', state: 'OR', full_address: 'Pine Avenue, Portland, OR', lat: 45.5152, lng: -122.6784 },
+      { name: 'First Street', city: 'Seattle', state: 'WA', full_address: 'First Street, Seattle, WA', lat: 47.6062, lng: -122.3321 },
+    ];
+    let added = 0;
+    const checkStreet = db.prepare('SELECT id FROM streets WHERE name = ? AND city = ? AND state = ?');
+    const insStreet = db.prepare(`INSERT INTO streets (name, city, state, full_address, latitude, longitude) VALUES (?,?,?,?,?,?)`);
+    for (const s of streets) {
+      if (checkStreet.get(s.name, s.city, s.state)) continue;
+      insStreet.run(s.name, s.city, s.state, s.full_address, s.lat, s.lng);
+      added++;
+    }
+    const streetRows = db.prepare('SELECT id, name, city, state FROM streets').all();
+    const surveyProfiles = [
+      { noise_level: 'Very Quiet', sociability: 'Friendly', events: 'Occasional', kids_friendly: 'Very Family-Friendly', walkability: 'Very Walkable', cookouts: 'Regular', nightlife: 'Quiet' },
+      { noise_level: 'Lively', sociability: 'Very Social', events: 'Very Active', kids_friendly: 'Some Families', walkability: 'Walkable', cookouts: 'Regular', nightlife: 'Active' },
+      { noise_level: 'Moderate', sociability: 'Social', events: 'Regular', kids_friendly: 'Family-Friendly', walkability: 'Very Walkable', cookouts: 'Regular', nightlife: 'Moderate' },
+      { noise_level: 'Very Quiet', sociability: 'Mostly Private', events: 'Rare', kids_friendly: 'Family-Friendly', walkability: 'Not Walkable', cookouts: 'Occasional', nightlife: 'None' },
+    ];
+    const countSurveys = db.prepare("SELECT COUNT(*) as c FROM resident_surveys WHERE street_id = ? AND verification_status = 'verified'");
+    const insSurvey = db.prepare(`INSERT INTO resident_surveys (street_id, noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, address_verified, verification_status) VALUES (?,?,?,?,?,?,?,?,1,'verified')`);
+    let surveysAdded = 0;
+    for (const st of streetRows) {
+      if (countSurveys.get(st.id).c > 0) continue;
+      const profile = surveyProfiles[streetRows.indexOf(st) % surveyProfiles.length];
+      try { insSurvey.run(st.id, profile.noise_level, profile.sociability, profile.events, profile.kids_friendly, profile.walkability, profile.cookouts, profile.nightlife); surveysAdded++; } catch (e) {}
+    }
+    const totalStreets = db.prepare('SELECT COUNT(*) as c FROM streets').get().c;
+    const totalSurveys = db.prepare("SELECT COUNT(*) as c FROM resident_surveys WHERE verification_status = 'verified'").get().c;
+    res.json({ success: true, streetsAdded: added, surveysAdded, totalStreets, totalSurveys });
+  } catch (err) {
+    console.error('Seed error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Business partnership inquiries (Local Shops)
+app.post('/api/partnerships/shop', (req, res) => {
+  try {
+    const { business_name, contact_name, email, phone, business_type, city, state, menu, target_cities } = req.body;
+    if (!email || !business_name || !contact_name) {
+      return res.status(400).json({ error: 'Business name, contact name, and email are required' });
+    }
+    const metadata = { type: 'shop', business_name, contact_name, phone, business_type, city, state, menu: menu || [], target_cities };
+    db.prepare(`INSERT INTO leads (email, source, street_ids, metadata_json) VALUES (?, 'shop_partnership', '', ?)`).run(email.trim().toLowerCase(), JSON.stringify(metadata));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Shop partnership error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Realtor partnership inquiries
+app.post('/api/partnerships/realtor', (req, res) => {
+  try {
+    const { realtor_name, agency_name, email, phone, license_number, target_areas, target_cities, description, website } = req.body;
+    if (!email || !realtor_name || !agency_name) {
+      return res.status(400).json({ error: 'Realtor name, agency name, and email are required' });
+    }
+    const metadata = { type: 'realtor', realtor_name, agency_name, phone, license_number, target_areas, target_cities, description, website };
+    db.prepare(`INSERT INTO leads (email, source, street_ids, metadata_json) VALUES (?, 'realtor_partnership', '', ?)`).run(email.trim().toLowerCase(), JSON.stringify(metadata));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Realtor partnership error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Capture leads (email signup, save favorites, etc.) - no auth required
+app.post('/api/leads', (req, res) => {
+  try {
+    const { email, source = 'signup', streetIds = [], metadata = {} } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    const streetIdsStr = Array.isArray(streetIds) ? streetIds.join(',') : String(streetIds || '');
+    const metadataStr = typeof metadata === 'object' ? JSON.stringify(metadata) : '{}';
+    db.prepare(`
+      INSERT INTO leads (email, source, street_ids, metadata_json)
+      VALUES (?, ?, ?, ?)
+    `).run(email.trim().toLowerCase(), source, streetIdsStr, metadataStr);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Leads error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Save user preferences
 app.post('/api/user/preferences', (req, res) => {
   if (!req.user) {
@@ -760,7 +1462,7 @@ app.post('/api/user/preferences', (req, res) => {
   }
 
   try {
-    const { noise, sociability, events, kids, walkability, cookouts, nightlife } = req.body;
+    const { noise, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity } = req.body;
     
     // Check if preferences exist
     const existing = db.prepare('SELECT * FROM user_preferences WHERE user_id = ?').get(req.user.id);
@@ -769,16 +1471,16 @@ app.post('/api/user/preferences', (req, res) => {
       // Update
       db.prepare(`
         UPDATE user_preferences 
-        SET noise = ?, sociability = ?, events = ?, kids = ?, 
-            walkability = ?, cookouts = ?, nightlife = ?, updated_at = CURRENT_TIMESTAMP
+        SET noise = ?, walkability = ?, safety = ?, kids = ?, public_education = ?,
+            events = ?, lawn_space = ?, neighbor_familiarity = ?, updated_at = CURRENT_TIMESTAMP
         WHERE user_id = ?
-      `).run(noise, sociability, events, kids, walkability, cookouts, nightlife, req.user.id);
+      `).run(noise, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, req.user.id);
     } else {
       // Insert
       db.prepare(`
-        INSERT INTO user_preferences (user_id, noise, sociability, events, kids, walkability, cookouts, nightlife)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(req.user.id, noise, sociability, events, kids, walkability, cookouts, nightlife);
+        INSERT INTO user_preferences (user_id, noise, walkability, safety, kids, public_education, events, lawn_space, neighbor_familiarity)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(req.user.id, noise, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity);
     }
     
     const preferences = db.prepare('SELECT * FROM user_preferences WHERE user_id = ?').get(req.user.id);
@@ -809,14 +1511,28 @@ app.get('/api/user/profile', (req, res) => {
   }
 
   try {
-    const user = db.prepare('SELECT id, email, first_name, last_name, full_name, profile_picture, headline, job_title, company, industry, location, profile_url, neighborhood_id, neighborhood_name, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, email, first_name, last_name, full_name, profile_picture, headline, job_title, company, industry, location, profile_url, neighborhood_id, neighborhood_name, verified_address, verified_street_id, premium_access, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
     const preferences = db.prepare('SELECT * FROM user_preferences WHERE user_id = ?').get(req.user.id);
     const neighborhood = user.neighborhood_id ? db.prepare('SELECT * FROM neighborhoods WHERE id = ?').get(user.neighborhood_id) : null;
+    const savedStreets = db.prepare(`
+      SELECT s.*, n.name as neighborhood_name,
+        (SELECT COUNT(*) FROM resident_surveys WHERE street_id = s.id AND verification_status = 'verified') as survey_count
+      FROM saved_streets ss
+      JOIN streets s ON ss.street_id = s.id
+      LEFT JOIN neighborhoods n ON s.neighborhood_id = n.id
+      WHERE ss.user_id = ?
+      ORDER BY ss.created_at DESC
+    `).all(req.user.id);
+    const savedCount = savedStreets.length;
+    const savedLimit = user.premium_access ? 999 : FREE_SAVED_LIMIT;
     
     res.json({
       ...user,
       preferences: preferences || null,
-      neighborhood: neighborhood || null
+      neighborhood: neighborhood || null,
+      savedStreets,
+      savedCount,
+      savedLimit,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1252,12 +1968,13 @@ app.post('/api/neighborhoods/:id/surveys', (req, res) => {
       street_id,
       street_name,
       noise_level, 
-      sociability, 
-      events, 
+      walkability,
+      safety,
       kids_friendly, 
-      walkability, 
-      cookouts, 
-      nightlife, 
+      public_education,
+      events,
+      lawn_space,
+      neighbor_familiarity,
       additional_notes,
       verification_token,
       address_verified 
@@ -1316,8 +2033,8 @@ app.post('/api/neighborhoods/:id/surveys', (req, res) => {
     
     const stmt = db.prepare(`
       INSERT INTO resident_surveys 
-      (neighborhood_id, street_id, resident_name, address, noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, additional_notes, address_verified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (neighborhood_id, street_id, resident_name, address, noise_level, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes, address_verified)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const result = stmt.run(
@@ -1326,12 +2043,13 @@ app.post('/api/neighborhoods/:id/surveys', (req, res) => {
       resident_name || null, 
       address || null, 
       noise_level, 
-      sociability, 
-      events, 
+      walkability,
+      safety,
       kids_friendly, 
-      walkability, 
-      cookouts, 
-      nightlife, 
+      public_education,
+      events,
+      lawn_space,
+      neighbor_familiarity,
       additional_notes,
       isVerified ? 1 : 0
     );
@@ -1346,16 +2064,16 @@ app.post('/api/neighborhoods/:id/surveys', (req, res) => {
 // Update resident survey
 app.put('/api/surveys/:id', (req, res) => {
   try {
-    const { resident_name, address, noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, additional_notes } = req.body;
+    const { resident_name, address, noise_level, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes } = req.body;
     
     const stmt = db.prepare(`
       UPDATE resident_surveys 
-      SET resident_name = ?, address = ?, noise_level = ?, sociability = ?, events = ?, kids_friendly = ?, 
-          walkability = ?, cookouts = ?, nightlife = ?, additional_notes = ?
+      SET resident_name = ?, address = ?, noise_level = ?, walkability = ?, safety = ?, kids_friendly = ?, 
+          public_education = ?, events = ?, lawn_space = ?, neighbor_familiarity = ?, additional_notes = ?
       WHERE id = ?
     `);
     
-    stmt.run(resident_name || null, address || null, noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, additional_notes, req.params.id);
+    stmt.run(resident_name || null, address || null, noise_level, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes, req.params.id);
     const survey = db.prepare('SELECT * FROM resident_surveys WHERE id = ?').get(req.params.id);
     
     if (!survey) {
@@ -1623,7 +2341,7 @@ app.post('/api/lookup-address', async (req, res) => {
     }
 
     // Basic address format validation - must have at least a number and street name
-    const addressPattern = /^(\d+)\s+(.+?)(?:,\s*|$)/;
+    const addressPattern = /^(\d+)\s+\w+/;
     const match = address.trim().match(addressPattern);
     if (!match) {
       return res.json({
@@ -1632,35 +2350,78 @@ app.post('/api/lookup-address', async (req, res) => {
       });
     }
 
-    // Extract house number and street name from input for validation
+    // Extract house number from input (normalize by removing commas)
     const inputHouseNumber = parseInt(match[1].replace(/,/g, ''), 10);
-    // Get street name words (remove common suffixes like "Street", "Avenue" for matching)
-    const inputStreetName = match[2].trim();
-    const inputStreetWords = inputStreetName.toLowerCase()
-      .replace(/\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|way|boulevard|blvd|court|ct|circle|cir|place|pl)\b/gi, '')
-      .trim()
-      .split(/\s+/)
-      .filter(w => w.length > 1);
-
-    // Geocode using OpenStreetMap Nominatim with strict validation
-    // We'll validate the response to ensure it's a real address
-    const encodedAddress = encodeURIComponent(address);
-    const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&addressdetails=1&limit=10&countrycodes=us`;
-    
-    const geocodeResponse = await fetch(geocodeUrl, {
-      headers: {
-        'User-Agent': 'HappyNeighbor/1.0 (neighborhood-survey-app)'
-      }
-    });
-
-    if (!geocodeResponse.ok) {
-      return res.json({ 
+    if (isNaN(inputHouseNumber) || inputHouseNumber < 1) {
+      return res.json({
         success: false,
-        error: 'Address verification service temporarily unavailable. Please try again.'
+        error: 'Please enter a valid house number.'
       });
     }
 
-    const geocodeData = await geocodeResponse.json();
+    // Use SmartyStreets US Address Validation API (validates against USPS data)
+    // Free tier: 250 lookups/month - sign up at smartystreets.com
+    const SMARTY_AUTH_ID = process.env.SMARTY_AUTH_ID || '';
+    const SMARTY_AUTH_TOKEN = process.env.SMARTY_AUTH_TOKEN || '';
+    
+    let geocodeData = [];
+    let validatedAddress = null;
+    
+    if (SMARTY_AUTH_ID && SMARTY_AUTH_TOKEN) {
+      // Use SmartyStreets for validation (more accurate)
+      try {
+        const smartyUrl = `https://us-street.api.smartystreets.com/street-address?auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&street=${encodeURIComponent(address)}&candidates=1`;
+        const smartyResponse = await fetch(smartyUrl);
+        
+        if (smartyResponse.ok) {
+          const smartyData = await smartyResponse.json();
+          if (smartyData && smartyData.length > 0 && smartyData[0].components) {
+            validatedAddress = smartyData[0];
+            // Convert SmartyStreets format to our expected format
+            const comp = validatedAddress.components;
+            const meta = validatedAddress.metadata || {};
+            geocodeData = [{
+              address: {
+                house_number: comp.primary_number,
+                road: comp.street_name + (comp.street_suffix ? ' ' + comp.street_suffix : ''),
+                city: comp.city_name,
+                state: comp.state_abbreviation,
+                postcode: comp.zipcode,
+                'ISO3166-2-lvl4': `US-${comp.state_abbreviation}`
+              },
+              lat: validatedAddress.metadata?.latitude,
+              lon: validatedAddress.metadata?.longitude,
+              display_name: validatedAddress.delivery_line_1 + ', ' + comp.city_name + ', ' + comp.state_abbreviation,
+              type: 'house'
+            }];
+          }
+        }
+      } catch (error) {
+        console.error('SmartyStreets API error:', error);
+        // Fall back to Nominatim if SmartyStreets fails
+      }
+    }
+    
+    // Fallback to Nominatim if SmartyStreets not configured or failed
+    if (geocodeData.length === 0) {
+      const encodedAddress = encodeURIComponent(address);
+      const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&addressdetails=1&limit=5&countrycodes=us`;
+      
+      const geocodeResponse = await fetch(geocodeUrl, {
+        headers: {
+          'User-Agent': 'HappyNeighbor/1.0 (neighborhood-survey-app)'
+        }
+      });
+
+      if (!geocodeResponse.ok) {
+        return res.json({ 
+          success: false,
+          error: 'Address verification service temporarily unavailable. Please try again.'
+        });
+      }
+
+      geocodeData = await geocodeResponse.json();
+    }
     
     if (!geocodeData || geocodeData.length === 0) {
       return res.json({
@@ -1669,54 +2430,75 @@ app.post('/api/lookup-address', async (req, res) => {
       });
     }
 
-    // VALIDATION: Focus on street name and city matching (relaxed house number validation)
-    // Goal: Verify the street and city exist and match, prevent lying about location
+    // LENIENT VALIDATION: Must be a real street, accept any house number on valid streets
+    // We trust users to enter their real address - the document verification step validates residency
     let bestResult = null;
-    
-    // Extract city from input address (usually after the last comma)
-    const addressParts = address.toLowerCase().split(',');
-    const inputCity = addressParts.length > 1 ? addressParts[addressParts.length - 2].trim() : null;
-    const inputState = addressParts.length > 1 ? addressParts[addressParts.length - 1].trim() : null;
+    let exactMatch = null;
     
     for (const result of geocodeData) {
       const addr = result.address || {};
       
-      // MUST have a road/street name
-      const geocodedStreet = (addr.road || addr.street || '').toLowerCase();
-      if (!geocodedStreet) {
+      // Must have a street/road name
+      const hasStreet = addr.road || addr.street || addr.highway;
+      
+      // Reject PO boxes
+      const resultType = (result.type || '').toLowerCase();
+      const isPOBox = resultType.includes('post_office') || resultType.includes('post_box');
+      
+      if (!hasStreet || isPOBox) {
         continue;
       }
       
-      // MUST have a city
-      const geocodedCity = (addr.city || addr.town || addr.village || addr.municipality || '').toLowerCase();
-      if (!geocodedCity) {
-        continue;
+      // Check for exact house number match (preferred)
+      if (addr.house_number) {
+        const geocodedHouseNumber = parseInt(String(addr.house_number).replace(/,/g, ''), 10);
+        if (!isNaN(geocodedHouseNumber) && geocodedHouseNumber === inputHouseNumber) {
+          exactMatch = result;
+          break;
+        }
       }
       
-      // Verify street name matches (check if key words from input street appear in geocoded street)
-      const streetMatches = inputStreetWords.length > 0 && inputStreetWords.some(word => 
-        geocodedStreet.includes(word)
-      );
-      
-      // Verify city matches (fuzzy match)
-      const cityMatches = inputCity && (
-        geocodedCity.includes(inputCity) || 
-        inputCity.includes(geocodedCity) ||
-        geocodedCity.replace(/\s+(city|town|village)$/i, '') === inputCity.replace(/\s+(city|town|village)$/i, '')
-      );
-      
-      // Accept if street and city match (house number validation relaxed)
-      if (streetMatches && cityMatches) {
+      // Accept any result with a valid street name
+      // The document verification step will confirm they actually live there
+      if (!bestResult) {
         bestResult = result;
-        break; // Found matching street and city - valid address!
       }
     }
     
-    // REJECT if no matching street/city found
+    // Use exact match if found, otherwise use best street match
+    bestResult = exactMatch || bestResult;
+    
+    // If no street-level results found, try to create from the input directly
+    if (!bestResult) {
+      // Parse the input address manually as a fallback
+      const inputParts = address.trim().split(',').map(p => p.trim());
+      if (inputParts.length >= 2) {
+        // Try to extract street name from the first part (after house number)
+        const streetPart = inputParts[0].replace(/^\d+\s+/, '').trim();
+        const cityPart = inputParts[1]?.trim();
+        const statePart = inputParts[2]?.trim() || inputParts[1]?.split(/\s+/).pop();
+        
+        if (streetPart && cityPart) {
+          bestResult = {
+            address: {
+              road: streetPart,
+              city: cityPart.replace(/\s+\w{2}$/, '').trim(), // Remove state abbrev if present
+              state: statePart || '',
+              house_number: match[1]
+            },
+            display_name: address.trim(),
+            lat: null,
+            lon: null
+          };
+        }
+      }
+    }
+    
+    // Final check - reject if still no result
     if (!bestResult) {
       return res.json({
         success: false,
-        error: 'This address could not be verified. The street name or city does not match any verified addresses. Please check your spelling and try again.'
+        error: 'Could not find that address. Please enter a complete street address (e.g., "123 Main St, Boston, MA").'
       });
     }
     
@@ -1887,12 +2669,13 @@ app.post('/api/streets/:id/surveys', (req, res) => {
       address,
       email,
       noise_level, 
-      sociability, 
-      events, 
-      kids_friendly, 
-      walkability, 
-      cookouts, 
-      nightlife, 
+      walkability,
+      safety,
+      kids_friendly,
+      public_education,
+      events,
+      lawn_space,
+      neighbor_familiarity,
       additional_notes,
       verification_token
     } = req.body;
@@ -1935,25 +2718,25 @@ app.post('/api/streets/:id/surveys', (req, res) => {
     if (neighborhoodId) {
       const stmt = db.prepare(`
         INSERT INTO resident_surveys 
-        (street_id, neighborhood_id, resident_name, address, submitter_email, noise_level, sociability, events, 
-         kids_friendly, walkability, cookouts, nightlife, additional_notes, address_verified, verification_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending')
+        (street_id, neighborhood_id, resident_name, address, submitter_email, noise_level, walkability, safety,
+         kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes, address_verified, verification_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending')
       `);
       result = stmt.run(
         streetId, neighborhoodId, resident_name || null, address || null, email || null,
-        noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, additional_notes
+        noise_level, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes
       );
     } else {
       // Insert without neighborhood_id to avoid NOT NULL constraint
       const stmt = db.prepare(`
         INSERT INTO resident_surveys 
-        (street_id, resident_name, address, submitter_email, noise_level, sociability, events, 
-         kids_friendly, walkability, cookouts, nightlife, additional_notes, address_verified, verification_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending')
+        (street_id, resident_name, address, submitter_email, noise_level, walkability, safety,
+         kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes, address_verified, verification_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending')
       `);
       result = stmt.run(
         streetId, resident_name || null, address || null, email || null,
-        noise_level, sociability, events, kids_friendly, walkability, cookouts, nightlife, additional_notes
+        noise_level, walkability, safety, kids_friendly, public_education, events, lawn_space, neighbor_familiarity, additional_notes
       );
     }
 
@@ -2102,9 +2885,22 @@ app.post('/api/admin/verify/:surveyId', (req, res) => {
       WHERE id = ?
     `).run(newStatus, notes || null, surveyId);
     
-    // If approved, update street aggregates
+    // If approved, update street aggregates and send email
     if (action === 'approve' && survey.street_id) {
       updateStreetAggregates(survey.street_id);
+      
+      // Send verification email if email is available
+      if (survey.submitter_email) {
+        const street = db.prepare('SELECT name, city, state FROM streets WHERE id = ?').get(survey.street_id);
+        if (street) {
+          sendSurveyVerifiedEmail(
+            survey.submitter_email,
+            street.name,
+            street.city,
+            street.state
+          ).catch(err => console.error('Failed to send verification email:', err));
+        }
+      }
     }
     
     res.json({
@@ -2212,12 +3008,13 @@ app.get('/api/streets/:id/vibe', (req, res) => {
 
     const vibe = {
       noise_level: aggregate('noise_level'),
-      sociability: aggregate('sociability'),
-      events: aggregate('events'),
-      kids_friendly: aggregate('kids_friendly'),
       walkability: aggregate('walkability'),
-      cookouts: aggregate('cookouts'),
-      nightlife: aggregate('nightlife')
+      safety: aggregate('safety'),
+      kids_friendly: aggregate('kids_friendly'),
+      public_education: aggregate('public_education'),
+      events: aggregate('events'),
+      lawn_space: aggregate('lawn_space'),
+      neighbor_familiarity: aggregate('neighbor_familiarity')
     };
 
     // Get recent notes (last 5, anonymized) - only from verified surveys
@@ -2251,31 +3048,52 @@ app.get('/api/streets/:id/vibe', (req, res) => {
   }
 });
 
-// Get matches based on preferences
+// Get matches based on preferences (STREETS ONLY)
 app.post('/api/matches', (req, res) => {
   try {
     const preferences = req.body;
-    const neighborhoods = db.prepare('SELECT * FROM neighborhoods ORDER BY name').all();
+    const matches = [];
     
-    const matches = neighborhoods.map(neighborhood => {
-      const profile = aggregateSurveys(neighborhood.id);
-      if (!profile || profile.survey_count === 0) {
-        return null;
+    // Get streets with verified surveys
+    const streets = db.prepare(`
+      SELECT s.*, n.name as neighborhood_name
+      FROM streets s 
+      LEFT JOIN neighborhoods n ON s.neighborhood_id = n.id
+      ORDER BY s.name
+    `).all();
+    
+    streets.forEach(street => {
+      // Only include streets with VERIFIED surveys for matching
+      const profile = aggregateStreetSurveys(street.id, false); // false = only verified
+      if (profile && profile.survey_count > 0) {
+        const matchResult = calculateMatchScore(profile, preferences);
+        matches.push({
+          id: street.id,
+          name: street.name || `${street.city}, ${street.state}`,
+          city: street.city,
+          state: street.state,
+          location: `${street.city}, ${street.state}`,
+          street_name: street.name,
+          neighborhood_name: street.neighborhood_name,
+          type: 'street',
+          avg_home_price: street.avg_home_price,
+          avg_price_per_sqft: street.avg_price_per_sqft,
+          ...profile,
+          matchScore: matchResult.overall,
+          matchCategories: matchResult.categories,
+          survey_count: profile.survey_count
+        });
       }
-      
-      return {
-        ...neighborhood,
-        ...profile,
-        matchScore: calculateMatchScore(profile, preferences),
-        survey_count: profile.survey_count
-      };
-    })
-    .filter(match => match !== null && match.matchScore > 0)
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 10); // Top 10 matches
+    });
     
-    res.json(matches);
+    // Sort by match score and return all (frontend will handle limiting)
+    const sortedMatches = matches
+      .filter(match => match.matchScore > 0)
+      .sort((a, b) => b.matchScore - a.matchScore);
+    
+    res.json(sortedMatches);
   } catch (error) {
+    console.error('Matches error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2302,6 +3120,9 @@ app.post('/api/community/verify', (req, res) => {
     `).get(code, streetId);
     
     if (survey) {
+      if (req.user?.id) {
+        db.prepare('UPDATE users SET verified_address = ?, verified_street_id = ? WHERE id = ?').run(survey.address, parseInt(streetId), req.user.id);
+      }
       return res.json({ 
         verified: true, 
         message: 'Welcome to your Community Hub!',
@@ -2316,6 +3137,9 @@ app.post('/api/community/verify', (req, res) => {
     `).get(code);
     
     if (surveyById && surveyById.street_id === parseInt(streetId)) {
+      if (req.user?.id) {
+        db.prepare('UPDATE users SET verified_address = ?, verified_street_id = ? WHERE id = ?').run(surveyById.address, parseInt(streetId), req.user.id);
+      }
       return res.json({ 
         verified: true, 
         message: 'Welcome to your Community Hub!',
@@ -2336,6 +3160,95 @@ app.post('/api/community/verify', (req, res) => {
   } catch (error) {
     console.error('Community verification error:', error);
     res.status(500).json({ verified: false, error: error.message });
+  }
+});
+
+// Check if logged-in user has Community Hub access (via verified address)
+app.get('/api/community/has-access/:streetId', (req, res) => {
+  try {
+    const streetId = parseInt(req.params.streetId);
+    if (!req.user?.id) {
+      return res.json({ hasAccess: false });
+    }
+    const user = db.prepare('SELECT verified_street_id FROM users WHERE id = ?').get(req.user.id);
+    const hasAccess = user?.verified_street_id === streetId;
+    res.json({ hasAccess: !!hasAccess });
+  } catch (error) {
+    res.json({ hasAccess: false });
+  }
+});
+
+// Check returning neighbor by address
+app.post('/api/community/check-returning', async (req, res) => {
+  try {
+    const { address } = req.body;
+    
+    if (!address) {
+      return res.status(400).json({ success: false, error: 'Address is required' });
+    }
+    
+    // Look up the address in verified surveys
+    const survey = db.prepare(`
+      SELECT s.*, st.id as street_id, st.name as street_name, st.city, st.state
+      FROM resident_surveys s
+      JOIN streets st ON s.street_id = st.id
+      WHERE LOWER(s.address) = LOWER(?)
+      AND s.verification_status = 'verified'
+      ORDER BY s.created_at DESC
+      LIMIT 1
+    `).get(address.trim());
+    
+    if (survey) {
+      return res.json({
+        success: true,
+        streetId: survey.street_id,
+        streetName: survey.street_name,
+        city: survey.city,
+        state: survey.state,
+        message: 'Welcome back!'
+      });
+    }
+    
+    // Try a fuzzy match on the address (normalize spaces, punctuation)
+    const normalizedAddress = address.trim().toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/,\s*/g, ', ')
+      .replace(/\./g, '');
+    
+    const allVerifiedSurveys = db.prepare(`
+      SELECT s.*, st.id as street_id, st.name as street_name, st.city, st.state
+      FROM resident_surveys s
+      JOIN streets st ON s.street_id = st.id
+      WHERE s.verification_status = 'verified'
+    `).all();
+    
+    for (const s of allVerifiedSurveys) {
+      if (s.address) {
+        const surveyAddr = s.address.toLowerCase()
+          .replace(/\s+/g, ' ')
+          .replace(/,\s*/g, ', ')
+          .replace(/\./g, '');
+        
+        if (surveyAddr === normalizedAddress || surveyAddr.includes(normalizedAddress) || normalizedAddress.includes(surveyAddr)) {
+          return res.json({
+            success: true,
+            streetId: s.street_id,
+            streetName: s.street_name,
+            city: s.city,
+            state: s.state,
+            message: 'Welcome back!'
+          });
+        }
+      }
+    }
+    
+    return res.json({ 
+      success: false, 
+      error: "We couldn't find your address in our verified residents list. Please complete the survey to join your Community Hub." 
+    });
+  } catch (error) {
+    console.error('Check returning neighbor error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -2364,6 +3277,549 @@ app.get('/api/community/:streetId/tasks', (req, res) => {
   ]);
 });
 
+// ============== PAYMENT ENDPOINTS (STRIPE) ==============
+
+// Create Stripe payment intent for matches unlock
+app.post('/api/payments/create-intent', async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment service not configured' });
+    }
+    
+    const { amount = 1000 } = req.body; // $10.00 in cents
+    
+    // Get user ID from session (optional - can work without auth for demo)
+    const userId = req.user?.id || null;
+    
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: 'usd',
+      metadata: {
+        userId: userId?.toString() || 'anonymous',
+        productType: 'matches_unlock'
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+    
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+  } catch (error) {
+    console.error('Stripe error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify payment and unlock premium access
+app.post('/api/payments/verify', async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment service not configured' });
+    }
+    
+    const { paymentIntentId } = req.body;
+    
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Payment intent ID required' });
+    }
+    
+    // Verify payment with Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ 
+        error: 'Payment not completed',
+        status: paymentIntent.status 
+      });
+    }
+    
+    // Get user ID from metadata or session
+    const userId = paymentIntent.metadata.userId !== 'anonymous' 
+      ? parseInt(paymentIntent.metadata.userId) 
+      : req.user?.id;
+    
+    // Record payment in database
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    
+    db.prepare(`
+      INSERT INTO payments (user_id, stripe_payment_intent_id, amount, status, product_type)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      userId || null,
+      paymentIntentId,
+      paymentIntent.amount,
+      paymentIntent.status,
+      paymentIntent.metadata.productType || 'matches_unlock'
+    );
+    
+    // Grant premium access for 1 month
+    if (userId) {
+      db.prepare(`
+        UPDATE users 
+        SET premium_access = 1, premium_expires_at = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(expiresAt.toISOString(), userId);
+    }
+    
+    // Send confirmation email if user has email
+    if (userId) {
+      const user = db.prepare('SELECT email, full_name FROM users WHERE id = ?').get(userId);
+      if (user?.email && emailTransporter) {
+        try {
+          await emailTransporter.sendMail({
+            from: process.env.SMTP_USER,
+            to: user.email,
+            subject: 'Welcome to Happy Neighbor Premium!',
+            html: `
+              <h2>Thank you for your purchase!</h2>
+              <p>Hi ${user.full_name || 'there'},</p>
+              <p>Your premium access has been activated. You now have full access to:</p>
+              <ul>
+                <li>All street matches (beyond the top 3)</li>
+                <li>Advanced search and filtering</li>
+                <li>Priority support</li>
+              </ul>
+              <p>Start exploring your matches at: <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/results">View Matches</a></p>
+              <p>Happy house hunting!</p>
+              <p>- The Happy Neighbor Team</p>
+            `
+          });
+        } catch (emailError) {
+          console.error('Email send error:', emailError);
+          // Don't fail the payment if email fails
+        }
+      }
+    }
+    
+    // Return success response
+    res.json({
+      success: true,
+      premiumAccess: true,
+      paymentIntentId: paymentIntentId,
+      expiresAt: expiresAt.toISOString(),
+      message: 'Payment verified! Premium access activated.'
+    });
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if user has premium access
+app.get('/api/user/premium-status', (req, res) => {
+  try {
+    // For anonymous users, check localStorage (handled on frontend)
+    if (!req.user) {
+      return res.json({ premiumAccess: false, message: 'Login required for premium features' });
+    }
+    
+    const user = db.prepare('SELECT premium_access, premium_expires_at FROM users WHERE id = ?').get(req.user.id);
+    
+    if (!user) {
+      return res.json({ premiumAccess: false });
+    }
+    
+    // Check if premium has expired
+    let premiumAccess = user.premium_access === 1;
+    if (user.premium_expires_at) {
+      const expiresAt = new Date(user.premium_expires_at);
+      premiumAccess = premiumAccess && expiresAt > new Date();
+    }
+    
+    res.json({
+      premiumAccess,
+      expiresAt: user.premium_expires_at
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== PREMIUM VERIFICATION (ANONYMOUS USERS) ==============
+
+// Verify premium access by payment intent ID (for anonymous users)
+app.post('/api/premium/verify', async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+    
+    if (!paymentIntentId) {
+      return res.json({ premiumAccess: false, error: 'Payment intent ID required' });
+    }
+    
+    // Look up payment in database
+    const payment = db.prepare(`
+      SELECT created_at, status, product_type 
+      FROM payments 
+      WHERE stripe_payment_intent_id = ? AND status = 'succeeded'
+    `).get(paymentIntentId);
+    
+    if (!payment) {
+      return res.json({ premiumAccess: false });
+    }
+    
+    // Calculate expiration (1 month from payment date)
+    const paymentDate = new Date(payment.created_at);
+    const expiresAt = new Date(paymentDate);
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    
+    // Check if still valid
+    const now = new Date();
+    const isValid = expiresAt > now;
+    
+    res.json({
+      premiumAccess: isValid,
+      expiresAt: expiresAt.toISOString(),
+      isValid: isValid
+    });
+  } catch (error) {
+    console.error('Premium verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== SEARCH & FILTERING (PREMIUM ONLY) ==============
+
+// Search streets with filters (premium feature)
+app.post('/api/streets/search', async (req, res) => {
+  try {
+    const { query, filters, preferences } = req.body;
+    
+    // Check premium access
+    const userId = req.user?.id;
+    let hasPremium = false;
+    
+    if (userId) {
+      const user = db.prepare('SELECT premium_access, premium_expires_at FROM users WHERE id = ?').get(userId);
+      if (user) {
+        hasPremium = user.premium_access === 1;
+        if (user.premium_expires_at) {
+          const expiresAt = new Date(user.premium_expires_at);
+          hasPremium = hasPremium && expiresAt > new Date();
+        }
+      }
+    }
+    
+    // Check localStorage premium (for anonymous users who paid)
+    // This is handled on frontend, but we'll allow if they have a valid payment
+    const hasLocalPremium = req.headers['x-premium-access'] === 'true';
+    
+    if (!hasPremium && !hasLocalPremium) {
+      return res.status(403).json({ 
+        error: 'Premium access required',
+        requiresPayment: true 
+      });
+    }
+    
+    // Build search query
+    let sqlQuery = `
+      SELECT s.*, n.name as neighborhood_name,
+        (SELECT COUNT(*) FROM resident_surveys WHERE street_id = s.id AND verification_status = 'verified') as survey_count
+      FROM streets s
+      LEFT JOIN neighborhoods n ON s.neighborhood_id = n.id
+      WHERE 1=1
+    `;
+    const params = [];
+    
+    // Text search
+    if (query && query.trim().length > 0) {
+      sqlQuery += ` AND (s.name LIKE ? OR s.city LIKE ? OR s.state LIKE ?)`;
+      const searchTerm = `%${query}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    // Filters
+    if (filters?.city) {
+      sqlQuery += ` AND s.city LIKE ?`;
+      params.push(`%${filters.city}%`);
+    }
+    if (filters?.state) {
+      sqlQuery += ` AND s.state = ?`;
+      params.push(filters.state);
+    }
+    
+    sqlQuery += ` ORDER BY s.name LIMIT 50`;
+    
+    const streets = db.prepare(sqlQuery).all(...params);
+    
+    // If preferences provided, calculate match scores
+    if (preferences && streets.length > 0) {
+      const streetsWithScores = streets.map(street => {
+        const profile = aggregateStreetSurveys(street.id, false);
+        if (profile && profile.survey_count > 0) {
+          const matchScore = calculateMatchScore(profile, preferences);
+          return {
+            ...street,
+            ...profile,
+            matchScore
+          };
+        }
+        return { ...street, matchScore: 0 };
+      });
+      
+      // Sort by match score if preferences provided
+      streetsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+      return res.json(streetsWithScores);
+    }
+    
+    res.json(streets);
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== SAVED STREETS ENDPOINTS ==============
+
+// Free tier: max 3 saved streets
+const FREE_SAVED_LIMIT = 3;
+
+// Save a street to favorites
+app.post('/api/streets/:id/save', (req, res) => {
+  try {
+    const streetId = parseInt(req.params.id);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Login required to save streets' });
+    }
+    
+    const existing = db.prepare('SELECT * FROM saved_streets WHERE user_id = ? AND street_id = ?').get(userId, streetId);
+    if (existing) {
+      return res.json({ message: 'Street already saved', saved: true });
+    }
+    
+    const count = db.prepare('SELECT COUNT(*) as c FROM saved_streets WHERE user_id = ?').get(userId)?.c || 0;
+    const isPremium = db.prepare('SELECT premium_access FROM users WHERE id = ?').get(userId)?.premium_access;
+    if (count >= FREE_SAVED_LIMIT && !isPremium) {
+      return res.status(402).json({ error: `Free accounts can save up to ${FREE_SAVED_LIMIT} streets. Upgrade to save more.`, limitReached: true });
+    }
+    
+    db.prepare('INSERT INTO saved_streets (user_id, street_id) VALUES (?, ?)').run(userId, streetId);
+    res.json({ message: 'Street saved successfully', saved: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unsave a street
+app.delete('/api/streets/:id/save', (req, res) => {
+  try {
+    const streetId = parseInt(req.params.id);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Login required' });
+    }
+    
+    db.prepare('DELETE FROM saved_streets WHERE user_id = ? AND street_id = ?').run(userId, streetId);
+    res.json({ message: 'Street removed from saved', saved: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get saved streets
+app.get('/api/user/saved-streets', (req, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.json([]);
+    }
+    
+    const savedStreets = db.prepare(`
+      SELECT s.*, n.name as neighborhood_name,
+        (SELECT COUNT(*) FROM resident_surveys WHERE street_id = s.id AND verification_status = 'verified') as survey_count
+      FROM saved_streets ss
+      JOIN streets s ON ss.street_id = s.id
+      LEFT JOIN neighborhoods n ON s.neighborhood_id = n.id
+      WHERE ss.user_id = ?
+      ORDER BY ss.created_at DESC
+    `).all(userId);
+    
+    res.json(savedStreets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if street is saved
+app.get('/api/streets/:id/saved', (req, res) => {
+  try {
+    const streetId = parseInt(req.params.id);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.json({ saved: false });
+    }
+    
+    const saved = db.prepare('SELECT * FROM saved_streets WHERE user_id = ? AND street_id = ?').get(userId, streetId);
+    res.json({ saved: !!saved });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== REVIEW VOTING ENDPOINTS ==============
+
+// Vote on a review
+app.post('/api/surveys/:id/vote', (req, res) => {
+  try {
+    const surveyId = parseInt(req.params.id);
+    const { voteType } = req.body;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Login required to vote' });
+    }
+    
+    if (!['upvote', 'downvote'].includes(voteType)) {
+      return res.status(400).json({ error: 'Invalid vote type' });
+    }
+    
+    const existing = db.prepare('SELECT * FROM review_votes WHERE user_id = ? AND survey_id = ?').get(userId, surveyId);
+    
+    if (existing) {
+      if (existing.vote_type === voteType) {
+        db.prepare('DELETE FROM review_votes WHERE user_id = ? AND survey_id = ?').run(userId, surveyId);
+        return res.json({ message: 'Vote removed', voteType: null });
+      } else {
+        db.prepare('UPDATE review_votes SET vote_type = ? WHERE user_id = ? AND survey_id = ?').run(voteType, userId, surveyId);
+      }
+    } else {
+      db.prepare('INSERT INTO review_votes (survey_id, user_id, vote_type) VALUES (?, ?, ?)').run(surveyId, userId, voteType);
+    }
+    
+    const upvotes = db.prepare('SELECT COUNT(*) as count FROM review_votes WHERE survey_id = ? AND vote_type = "upvote"').get(surveyId).count;
+    const downvotes = db.prepare('SELECT COUNT(*) as count FROM review_votes WHERE survey_id = ? AND vote_type = "downvote"').get(surveyId).count;
+    
+    res.json({ 
+      message: 'Vote recorded',
+      voteType,
+      upvotes,
+      downvotes,
+      score: upvotes - downvotes
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get votes for a survey
+app.get('/api/surveys/:id/votes', (req, res) => {
+  try {
+    const surveyId = parseInt(req.params.id);
+    const userId = req.user?.id;
+    
+    const upvotes = db.prepare('SELECT COUNT(*) as count FROM review_votes WHERE survey_id = ? AND vote_type = "upvote"').get(surveyId).count;
+    const downvotes = db.prepare('SELECT COUNT(*) as count FROM review_votes WHERE survey_id = ? AND vote_type = "downvote"').get(surveyId).count;
+    const userVote = userId ? db.prepare('SELECT vote_type FROM review_votes WHERE user_id = ? AND survey_id = ?').get(userId, surveyId) : null;
+    
+    res.json({
+      upvotes,
+      downvotes,
+      score: upvotes - downvotes,
+      userVote: userVote?.vote_type || null
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== STREET RECOMMENDATIONS ==============
+
+// Helper function to get most common value from vibe category
+function getMostCommonValue(vibeCategory) {
+  if (!vibeCategory || Object.keys(vibeCategory).length === 0) return null;
+  const sorted = Object.entries(vibeCategory).sort((a, b) => b[1] - a[1]);
+  return sorted[0][0];
+}
+
+// Get similar streets
+app.get('/api/streets/:id/similar', (req, res) => {
+  try {
+    const streetId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit) || 5;
+    
+    const targetProfile = aggregateStreetSurveys(streetId, false);
+    if (!targetProfile || !targetProfile.survey_count) {
+      return res.json([]);
+    }
+    
+    const streets = db.prepare(`
+      SELECT s.*, n.name as neighborhood_name
+      FROM streets s
+      LEFT JOIN neighborhoods n ON s.neighborhood_id = n.id
+      WHERE s.id != ?
+      ORDER BY s.name
+    `).all(streetId);
+    
+    const similarStreets = streets.map(street => {
+      const profile = aggregateStreetSurveys(street.id, false);
+      if (!profile || profile.survey_count === 0) return null;
+      
+      let similarity = 0;
+      const attributes = ['noise_level', 'walkability', 'safety', 'kids_friendly', 'public_education', 'events', 'lawn_space', 'neighbor_familiarity'];
+      
+      attributes.forEach(attr => {
+        const targetValue = getMostCommonValue(targetProfile.vibe?.[attr]);
+        const streetValue = getMostCommonValue(profile.vibe?.[attr]);
+        if (targetValue && streetValue && targetValue === streetValue) {
+          similarity += 1;
+        }
+      });
+      
+      if (similarity === 0) return null;
+      
+      return {
+        ...street,
+        ...profile,
+        similarity: Math.round((similarity / attributes.length) * 100)
+      };
+    }).filter(s => s !== null).sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+    
+    res.json(similarStreets);
+  } catch (error) {
+    console.error('Similar streets error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============== SUBSCRIPTION TIERS ==============
+
+// Get user subscription
+app.get('/api/user/subscription', (req, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.json({ hasSubscription: false });
+    }
+    
+    const subscription = db.prepare('SELECT * FROM subscriptions WHERE user_id = ? AND status = "active" ORDER BY created_at DESC').get(userId);
+    
+    if (subscription) {
+      const periodEnd = new Date(subscription.current_period_end);
+      const isActive = periodEnd > new Date();
+      
+      return res.json({
+        hasSubscription: isActive,
+        planType: subscription.plan_type,
+        periodEnd: subscription.current_period_end,
+        isActive
+      });
+    }
+    
+    res.json({ hasSubscription: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check / root route
 app.get('/', (req, res) => {
   res.json({
@@ -2375,7 +3831,12 @@ app.get('/', (req, res) => {
       streets: '/api/streets',
       survey: '/api/streets/:id/surveys',
       addressLookup: '/api/lookup-address',
-      verification: '/api/surveys/:id/verify'
+      verification: '/api/surveys/:id/verify',
+      payments: '/api/payments/create-intent',
+      search: '/api/streets/search (premium)',
+      savedStreets: '/api/user/saved-streets',
+      similarStreets: '/api/streets/:id/similar',
+      reviewVotes: '/api/surveys/:id/vote'
     }
   });
 });
@@ -2383,4 +3844,3 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
 });
-

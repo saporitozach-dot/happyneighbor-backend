@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+import { API_URL } from "../utils/apiConfig";
 
 const ResidentSubmission = () => {
   const navigate = useNavigate();
@@ -25,12 +25,13 @@ const ResidentSubmission = () => {
   const [formData, setFormData] = useState({
     resident_name: "",
     noise_level: "",
-    sociability: "",
-    events: "",
-    kids_friendly: "",
     walkability: "",
-    cookouts: "",
-    nightlife: "",
+    safety: "",
+    kids_friendly: "",
+    public_education: "",
+    events: "",
+    lawn_space: "",
+    neighbor_familiarity: "",
     additional_notes: "",
   });
 
@@ -184,15 +185,27 @@ const ResidentSubmission = () => {
     }
   };
 
-  // Survey options
+  // Survey options - MUST match values expected by matching algorithm in api-server.js
+  // These values are used to describe the ACTUAL characteristics of the street
+  // The frontend Survey.jsx asks about user PREFERENCES (importance), which the matching
+  // algorithm converts to match against these actual characteristics.
+  // 
+  // Matching logic:
+  // - noise_level, walkability, events: Direct value matching
+  // - safety: "Very Important" (user) matches "Very Safe" (street)
+  // - kids_friendly: "Very Important" (user) matches "Very Family-Friendly" (street)
+  // - public_education: "Very Important" (user) matches "Excellent" (street)
+  // - lawn_space: "Very Important" (user) matches "Very Large Yards" (street)
+  // - neighbor_familiarity: "Very Important" (user) matches "Often" (street)
   const options = {
     noise_level: ["Very Quiet", "Quiet", "Moderate", "Lively"],
-    sociability: ["Very Private", "Mostly Private", "Friendly", "Social", "Very Social"],
-    events: ["None", "Occasional", "Regular", "Very Active"],
-    kids_friendly: ["Not Family-Friendly", "Some Families", "Family-Friendly", "Very Family-Friendly"],
     walkability: ["Not Walkable", "Somewhat Walkable", "Walkable", "Very Walkable"],
-    cookouts: ["No Cookouts", "Occasional Cookouts", "Regular Cookouts", "Very Active Cookouts"],
-    nightlife: ["Quiet Evenings", "Some Activity", "Active", "Very Active"],
+    safety: ["Not Safe", "Somewhat Safe", "Safe", "Very Safe"],
+    kids_friendly: ["Not Family-Friendly", "Some Families", "Family-Friendly", "Very Family-Friendly"],
+    public_education: ["Poor", "Below Average", "Average", "Good", "Excellent"],
+    events: ["None", "Occasional", "Regular", "Very Active"],
+    lawn_space: ["Small Yards", "Moderate Yards", "Large Yards", "Very Large Yards"],
+    neighbor_familiarity: ["Never", "Rarely", "Sometimes", "Often"],
   };
 
   const renderStepContent = () => {
@@ -334,16 +347,38 @@ const ResidentSubmission = () => {
 
             <div>
               <label className="block text-lg font-semibold text-gray-900 mb-4">
-                👋 How social are your neighbors?
+                🚶 How walkable is your street?
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {options.sociability.map((option) => (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {options.walkability.map((option) => (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => handleChange("sociability", option)}
-                    className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.sociability === option
+                    onClick={() => handleChange("walkability", option)}
+                    className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
+                      formData.walkability === option
+                        ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
+                        : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-lg font-semibold text-gray-900 mb-4">
+                🛡️ How safe does your street feel?
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {options.safety.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleChange("safety", option)}
+                    className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
+                      formData.safety === option
                         ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
                         : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
                     }`}
@@ -353,30 +388,8 @@ const ResidentSubmission = () => {
                 ))}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                From "waves from a distance" to "block parties every weekend"
+                Walking at night, letting kids play outside, general sense of security
               </p>
-            </div>
-
-            <div>
-              <label className="block text-lg font-semibold text-gray-900 mb-4">
-                🎉 Community events & gatherings?
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {options.events.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleChange("events", option)}
-                    className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.events === option
-                        ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
-                        : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div>
@@ -400,6 +413,31 @@ const ResidentSubmission = () => {
                 ))}
               </div>
             </div>
+
+            <div>
+              <label className="block text-lg font-semibold text-gray-900 mb-4">
+                🎓 How are the public schools in the area?
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {options.public_education.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleChange("public_education", option)}
+                    className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                      formData.public_education === option
+                        ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
+                        : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Rate the quality of public K-12 schools in the city
+              </p>
+            </div>
           </div>
         );
 
@@ -407,22 +445,23 @@ const ResidentSubmission = () => {
         return (
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Almost done!</h2>
-              <p className="text-gray-600">A few more details about <strong>{streetData?.street?.name}</strong></p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Tell us about the community</h2>
+              <p className="text-gray-600">What makes <strong>{streetData?.street?.name}</strong> special?</p>
             </div>
 
             <div>
               <label className="block text-lg font-semibold text-gray-900 mb-4">
-                🚶 How walkable is it?
+                👋 Do neighbors know each other by name?
               </label>
+              <p className="text-sm text-gray-500 mb-3">A sign of real community—not just passing faces</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {options.walkability.map((option) => (
+                {options.neighbor_familiarity.map((option) => (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => handleChange("walkability", option)}
+                    onClick={() => handleChange("neighbor_familiarity", option)}
                     className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.walkability === option
+                      formData.neighbor_familiarity === option
                         ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
                         : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
                     }`}
@@ -435,16 +474,18 @@ const ResidentSubmission = () => {
 
             <div>
               <label className="block text-lg font-semibold text-gray-900 mb-4">
-                🍖 Cookouts & BBQs?
+                🎉 Community events & gatherings?
               </label>
+              <p className="text-sm text-gray-500 mb-1">Block parties, street festivals, neighborhood meetups</p>
+              <p className="text-sm text-gray-400 mb-3 italic">Including BBQs & cookouts</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {options.cookouts.map((option) => (
+                {options.events.map((option) => (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => handleChange("cookouts", option)}
+                    onClick={() => handleChange("events", option)}
                     className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.cookouts === option
+                      formData.events === option
                         ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
                         : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
                     }`}
@@ -457,16 +498,17 @@ const ResidentSubmission = () => {
 
             <div>
               <label className="block text-lg font-semibold text-gray-900 mb-4">
-                🌙 Nightlife & evening activity?
+                🌱 What's the lawn space & yard size like?
               </label>
+              <p className="text-sm text-gray-500 mb-3">Backyard size, front yard space, outdoor areas on your street</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {options.nightlife.map((option) => (
+                {["Small Yards", "Moderate Yards", "Large Yards", "Very Large Yards"].map((option) => (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => handleChange("nightlife", option)}
+                    onClick={() => handleChange("lawn_space", option)}
                     className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.nightlife === option
+                      formData.lawn_space === option
                         ? "border-orange-500 bg-orange-50 text-orange-700 shadow-md"
                         : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
                     }`}
@@ -681,8 +723,8 @@ const ResidentSubmission = () => {
 
   const canProceed = () => {
     if (currentStep === 1) return address.trim().length > 0;
-    if (currentStep === 2) return formData.noise_level && formData.sociability;
-    if (currentStep === 3) return email.trim().includes('@');
+    if (currentStep === 2) return formData.noise_level && formData.walkability && formData.safety && formData.kids_friendly && formData.public_education;
+    if (currentStep === 3) return formData.events && formData.lawn_space && formData.neighbor_familiarity && email.trim().includes('@');
     if (currentStep === 4) return selectedDocType && uploadFile;
     return true;
   };
@@ -705,15 +747,16 @@ const ResidentSubmission = () => {
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
         {/* Navigation */}
-        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link to="/" className="flex items-center">
-                <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+        <nav className="sticky top-0 z-50 bg-white shadow-sm">
+          <div className="px-6 sm:px-10">
+            <div className="flex justify-between items-center h-14">
+              <Link to="/" className="flex items-center gap-2">
+                <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
+                <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight">
                   Happy Neighbor
                 </span>
               </Link>
-              <Link to="/" className="text-gray-600 hover:text-orange-600 transition-colors font-medium">
+              <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">
                 Back to Home
               </Link>
             </div>
@@ -748,37 +791,48 @@ const ResidentSubmission = () => {
             {renderStepContent()}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between mt-10 pt-6 border-t border-gray-200">
-              <button
-                onClick={handleBack}
-                disabled={currentStep === 1 || currentStep === 4}
-                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                  currentStep === 1 || currentStep === 4
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                Back
-              </button>
-              
-              <button
-                onClick={handleNext}
-                disabled={!canProceed() || verifying || submitting || uploading}
-                className={`px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
-                  currentStep === 4 
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white'
-                    : currentStep === 3
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                    : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white'
-                }`}
-              >
-                {verifying ? "Verifying..." : 
-                 submitting ? "Saving..." : 
-                 uploading ? "Uploading..." :
-                 currentStep === 3 ? "Save & Continue to Verification" :
-                 currentStep === 4 ? "Submit Verification" :
-                 "Continue"}
-              </button>
+            <div className="mt-10 pt-6 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={handleBack}
+                  disabled={currentStep === 1 || currentStep === 4}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    currentStep === 1 || currentStep === 4
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Back
+                </button>
+                
+                <div className="flex flex-col items-end">
+                  <button
+                    onClick={handleNext}
+                    disabled={!canProceed() || verifying || submitting || uploading}
+                    className={`px-8 py-3 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                      !canProceed() || verifying || submitting || uploading
+                        ? 'bg-gray-300 text-gray-500'
+                        : currentStep === 4 
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:shadow-lg hover:scale-105'
+                        : currentStep === 3
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:scale-105'
+                        : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-lg hover:scale-105'
+                    }`}
+                  >
+                    {verifying ? "Verifying..." : 
+                     submitting ? "Saving..." : 
+                     uploading ? "Uploading..." :
+                     currentStep === 3 ? "Save & Continue to Verification" :
+                     currentStep === 4 ? "Submit Verification" :
+                     "Continue"}
+                  </button>
+                  {!canProceed() && !verifying && !submitting && !uploading && (
+                    <p className="text-sm text-orange-600 mt-2">
+                      Please answer all required questions
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

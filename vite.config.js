@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    host: '0.0.0.0', // Allow access from other devices on the network
     open: true,
     watch: {
       // Optimize for cloud storage (OneDrive)

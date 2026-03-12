@@ -31,21 +31,35 @@ npm run dev:all
 
 **Option B: Run them separately**
 
-Terminal 1 (Backend):
+Terminal 1 (Backend API on port 3005):
 ```bash
 npm run dev:server
 ```
 
-Terminal 2 (Frontend):
+Terminal 2 (Frontend on port 3000):
 ```bash
 npm run dev
 ```
 
+**Note:** If Node/npm isn't in your PATH, use the portable Node script:
+```powershell
+.\run-with-portable-node.ps1
+```
+
 ### 3. Access the Application
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:3001
-- **Admin Panel**: http://localhost:3000/admin
+- **Frontend**: http://localhost:3000 (Vite may use 3001, 3002, etc. if 3000 is busy)
+- **Backend API**: http://localhost:3005
+- **Admin Panel**: http://localhost:3000/admin (requires login)
+
+### 4. Populate Demo Data (Optional)
+
+To fill the database with sample streets and surveys:
+
+1. Start the API server first (`npm run dev:server`)
+2. In another terminal: `npm run seed`
+
+Or run `npm run populate:streets` (requires Node with better-sqlite3).
 
 ## Bulk Data Import
 

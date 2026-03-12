@@ -239,7 +239,7 @@ const getCoordinates = (location, neighborhoodName = '', zoomLevel = 1, index = 
   }
 };
 
-const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null }) => {
+const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null, markerColor = "#10B981", markerSelectedColor = "#2563EB", interactive = true }) => {
   const [mapError, setMapError] = useState(false);
   const [position, setPosition] = useState({ coordinates: [-97, 37], zoom: 1 }); // US center coordinates
   const [isZooming, setIsZooming] = useState(false); // Prevent rapid zoom changes
@@ -466,11 +466,12 @@ const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null }) => {
   return (
     <MapErrorBoundary>
       <div 
-        className="w-full bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl overflow-hidden border-2 border-orange-200 shadow-xl relative select-none"
-        style={{ minHeight: '500px' }}
+        className={`w-full bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl overflow-hidden border-2 border-orange-200 shadow-xl relative ${interactive ? 'select-none' : ''}`}
+        style={{ minHeight: '500px', ...(interactive ? {} : { pointerEvents: 'none' }) }}
       >
-      {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+      {/* Zoom Controls - hidden when static */}
+      {interactive && (
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2" style={{ pointerEvents: 'auto' }}>
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -521,14 +522,16 @@ const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null }) => {
           {position.zoom.toFixed(1)}x
         </div>
       </div>
+      )}
 
       <ComposableMap
         projection="geoAlbersUsa"
-        width={800}
-        height={500}
+        width={1100}
+        height={650}
         style={{ 
           width: '100%', 
           height: 'auto', 
+          maxWidth: '100%',
           backgroundColor: '#F8FAFC'
         }}
       >
@@ -599,6 +602,11 @@ const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null }) => {
                 minZoom={0.5}
                 maxZoom={3.5}
                 translateExtent={[[-200, -100], [200, 100]]}
+                filterZoomEvent={interactive ? ((d3Event) => {
+                  if (!d3Event?.sourceEvent) return false;
+                  if (d3Event.sourceEvent.type === "wheel") return false;
+                  return true;
+                }) : () => false}
               >
                 <Geographies geography={geoUrl}>
                   {(geographiesResult) => {
@@ -767,7 +775,7 @@ const USMap = ({ neighborhoods = [], onMarkerClick, selectedId = null }) => {
                         >
                           <circle
                             r={markerRadius}
-                            fill={isSelected ? '#2563EB' : '#10B981'}
+                            fill={isSelected ? markerSelectedColor : markerColor}
                             stroke="#fff"
                             strokeWidth={strokeWidth}
                           >

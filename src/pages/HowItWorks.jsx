@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import AnimatedSection from "../components/AnimatedSection";
 
 const howItWorksSteps = [
   {
@@ -38,15 +39,16 @@ const howItWorksSteps = [
 const HowItWorks = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+      <nav className="sticky top-0 z-50 bg-white shadow-sm">
+        <div className="px-6 sm:px-10">
+          <div className="flex justify-between items-center h-14">
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
+              <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight">
                 Happy Neighbor
               </span>
             </Link>
-            <Link to="/" className="text-gray-600 hover:text-orange-600 transition-colors font-medium">
+            <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">
               Back to Home
             </Link>
           </div>
@@ -55,19 +57,19 @@ const HowItWorks = () => {
 
       <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <AnimatedSection className="text-center mb-16">
             <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-4">
               How It Works
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Three simple steps to find your perfect neighborhood match
             </p>
-          </div>
+          </AnimatedSection>
           <div className="grid md:grid-cols-3 gap-8">
             {howItWorksSteps.map((step, idx) => (
+              <AnimatedSection key={idx} delay={120 * (idx + 1)}>
               <div
-                key={idx}
-                className="relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all border border-gray-100 group"
+                className="relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow duration-300 border border-gray-100 group"
               >
                 <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
                   {step.number}
@@ -78,16 +80,17 @@ const HowItWorks = () => {
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">{step.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{step.desc}</p>
               </div>
+              </AnimatedSection>
             ))}
           </div>
-          <div className="text-center mt-12">
+          <AnimatedSection className="text-center mt-12" delay={360}>
             <Link
               to="/survey"
-              className="inline-block px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold text-lg shadow-xl hover:shadow-2xl transition-all hover:scale-105"
+              className="inline-block px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
             >
               Get Started
             </Link>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
     </div>

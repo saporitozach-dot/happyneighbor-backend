@@ -13,9 +13,16 @@
     "preview": "vite preview",
     "import:osm": "node scripts/import-neighborhoods.js osm",
     "import:csv": "node scripts/import-neighborhoods.js csv",
-    "import:json": "node scripts/import-neighborhoods.js json"
+    "import:json": "node scripts/import-neighborhoods.js json",
+    "test:local": "node scripts/test-local.js",
+    "populate:test": "node scripts/populate-test-data.js",
+    "populate:streets": "node scripts/populate-test-streets.js",
+    "seed": "node scripts/seed-via-api.js",
+    "screenshots": "node scripts/capture-investor-screenshots.js"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "better-sqlite3": "^12.5.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -23,7 +30,10 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-session": "^1.18.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "multer": "^2.0.2",
+    "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-linkedin-oauth2": "^2.0.0",
@@ -32,7 +42,8 @@
     "react-helmet-async": "^2.0.5",
     "react-router-dom": "^7.10.0",
     "react-simple-maps": "^3.0.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "stripe": "^20.1.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
@@ -41,6 +52,7 @@
     "autoprefixer": "^10.4.16",
     "concurrently": "^9.2.1",
     "postcss": "^8.4.32",
+    "puppeteer": "^23.0.0",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.8"
   }

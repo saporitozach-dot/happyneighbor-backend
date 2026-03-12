@@ -15,8 +15,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'https://happyneighbor-api-production.up.railway.app/api';
-  const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'https://happyneighbor-api-production.up.railway.app';
+  const API_URL = (() => {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (typeof window !== 'undefined') return `http://${window.location.hostname}:3005/api`;
+    return 'http://localhost:3005/api';
+  })();
+  const AUTH_URL = import.meta.env.VITE_AUTH_URL || (API_URL.replace('/api', ''));
 
   useEffect(() => {
     checkAuth();
@@ -44,17 +48,48 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = (provider = 'linkedin') => {
-    // Redirect to OAuth provider
-    if (provider === 'google') {
-      window.location.href = `${AUTH_URL}/auth/google`;
-    } else {
-      window.location.href = `${AUTH_URL}/auth/linkedin`;
+  const login = (email, password) => {
+    return loginWithEmail(email, password);
+  };
+
+  const loginWithEmail = async (email, password) => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
+      await checkAuth();
+      return { success: true };
+    } catch (err) {
+      const msg = err.message || 'Login failed. Please check your credentials.';
+      setError(msg);
+      return { success: false, error: msg };
     }
   };
 
-  const loginWithGoogle = () => {
-    window.location.href = `${AUTH_URL}/auth/google`;
+  const registerWithEmail = async (email, password, fullName, address) => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password, full_name: fullName, address }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
+      await checkAuth();
+      return { success: true };
+    } catch (err) {
+      const msg = err.message || 'Registration failed. Please try again.';
+      setError(msg);
+      return { success: false, error: msg };
+    }
   };
 
   const loginWithLinkedIn = () => {
@@ -78,12 +113,15 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     error,
+    setError,
     login,
-    loginWithGoogle,
+    loginWithEmail,
+    registerWithEmail,
     loginWithLinkedIn,
     logout,
     checkAuth,
     isAuthenticated: !!user,
+    API_URL,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

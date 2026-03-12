@@ -2,3 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* Shared animation system - consistent easing and feel across pages */
+:root {
+  --anim-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-duration: 0.7s;
+  --anim-stagger: 120ms;
+}
+
+@keyframes pageSlideUp {
+  0% { opacity: 0; transform: translateY(28px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes statSlideIn {
+  0% { opacity: 0; transform: translateY(50px); pointer-events: none; }
+  100% { opacity: 1; transform: translateY(0); pointer-events: auto; }
+}
+

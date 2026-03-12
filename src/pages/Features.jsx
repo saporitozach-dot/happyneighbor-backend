@@ -51,15 +51,16 @@ const features = [
 const Features = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+      <nav className="sticky top-0 z-50 bg-white shadow-sm">
+        <div className="px-6 sm:px-10">
+          <div className="flex justify-between items-center h-14">
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
+              <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight">
                 Happy Neighbor
               </span>
             </Link>
-            <Link to="/" className="text-gray-600 hover:text-orange-600 transition-colors font-medium">
+            <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">
               Back to Home
             </Link>
           </div>

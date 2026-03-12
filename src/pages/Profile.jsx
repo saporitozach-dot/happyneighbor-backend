@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Helmet } from 'react-helmet-async';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://happyneighbor-api-production.up.railway.app/api';
+import { API_URL } from "../utils/apiConfig";
 
 const Profile = () => {
   const { user, logout, isAuthenticated, loading } = useAuth();
@@ -193,6 +193,15 @@ const Profile = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
               <p className="text-gray-900">{profileData?.email || 'Not provided'}</p>
             </div>
+            {(profileData?.verified_address || profileData?.verified_street_id) && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Community Hub Address</label>
+                <p className="text-gray-900">{profileData.verified_address || 'Verified resident'}</p>
+                <Link to={`/community/${profileData.verified_street_id}`} className="text-orange-600 hover:underline text-sm mt-1 inline-block">
+                  Open Community Hub →
+                </Link>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
               <p className="text-gray-900">{profileData?.full_name || 'Not provided'}</p>
@@ -377,6 +386,59 @@ const Profile = () => {
           </div>
         )}
 
+        {/* Saved Streets (Home seeker) - cap at 3 for free */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Saved Streets</h2>
+            <span className="text-sm text-gray-500">
+              {profileData?.savedCount ?? 0} / {profileData?.savedLimit ?? 3} saved
+            </span>
+          </div>
+          {profileData?.savedStreets?.length > 0 ? (
+            <div className="space-y-4">
+              {profileData.savedStreets.map((street) => (
+                <div
+                  key={street.id}
+                  className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-100"
+                >
+                  <div>
+                    <Link to={`/street/${street.id}`} className="font-semibold text-gray-900 hover:text-orange-600">
+                      {street.name}
+                    </Link>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {street.neighborhood_name} • {street.city}, {street.state}
+                    </p>
+                    {street.survey_count > 0 && (
+                      <p className="text-xs text-orange-600 mt-1">{street.survey_count} verified review{street.survey_count !== 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+                  <Link
+                    to={`/street/${street.id}`}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+                  >
+                    View
+                  </Link>
+                </div>
+              ))}
+              {!profileData?.premium_access && (profileData?.savedLimit ?? 3) <= 3 && (
+                <p className="text-sm text-gray-500 italic">
+                  Free accounts can save up to 3 streets. Upgrade to save more.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-4">No saved streets yet.</p>
+              <Link
+                to="/survey"
+                className="inline-block px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+              >
+                Find Matches & Save Streets
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* Preferences */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
           <div className="flex justify-between items-center mb-6">
@@ -429,10 +491,10 @@ const Profile = () => {
                   <p className="text-gray-900">{preferences.walkability}</p>
                 </div>
               )}
-              {preferences.cookouts && (
+              {preferences.lawn_space && (
                 <div className="p-4 bg-orange-50 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cookouts</label>
-                  <p className="text-gray-900">{preferences.cookouts}</p>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Lawn Space</label>
+                  <p className="text-gray-900">{preferences.lawn_space}</p>
                 </div>
               )}
               {preferences.nightlife && (
