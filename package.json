@@ -18,7 +18,8 @@
     "populate:test": "node scripts/populate-test-data.js",
     "populate:streets": "node scripts/populate-test-streets.js",
     "seed": "node scripts/seed-via-api.js",
-    "screenshots": "node scripts/capture-investor-screenshots.js"
+    "screenshots": "node scripts/capture-investor-screenshots.js",
+    "screenshots:capture": "node scripts/capture-screenshots.js"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.4.1",
