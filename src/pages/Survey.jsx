@@ -8,11 +8,9 @@ import BudgetLocationModal from '../components/BudgetLocationModal';
 import { API_URL } from "../utils/apiConfig";
 
 const AI_MESSAGES = [
-  "Analyzing your preferences...",
-  "Matching neighborhoods to your profile...",
-  "Building your results...",
-  "Almost there...",
+  "AI analyzing your preferences...",
   "Finding your matches...",
+  "Almost there...",
 ];
 
 const Survey = () => {
@@ -267,20 +265,20 @@ const Survey = () => {
         <BudgetLocationModal onComplete={() => { setShowBudgetModal(false); navigate("/results"); }} />
       )}
       {isCalculating && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gray-50">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
           <div className="flex flex-col items-center max-w-sm px-8">
-            <div className="w-12 h-12 rounded-full border-2 border-gray-900 border-t-transparent animate-spin mb-6" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">
-              Finding your matches
-            </h2>
-            <p className="text-sm text-gray-500 text-center mb-6 min-h-[1.25rem]">
+            <div className="relative mb-5">
+              <div className="w-10 h-10 rounded-full border-2 border-orange-400 border-t-transparent animate-spin" />
+              <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-transparent border-b-amber-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+            </div>
+            <p className="text-sm text-gray-600 text-center min-h-[1.25rem] transition-opacity duration-300">
               {AI_MESSAGES[aiMessageIndex]}
             </p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1 mt-4">
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
+                  className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"
                   style={{ animationDelay: `${i * 120}ms` }}
                 />
               ))}
