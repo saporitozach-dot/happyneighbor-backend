@@ -1,810 +1,323 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
 import { API_URL } from "../utils/apiConfig";
-import FirstResidentCelebration from "../components/FirstResidentCelebration";
 
-// Modal Component - defined outside to prevent re-creation on each render
-const Modal = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-          </div>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
+const TABS = [
+  { id: "events", label: "Events" },
+  { id: "tasks", label: "Tasks" },
+  { id: "helpers", label: "Helpers" },
+  { id: "marketplace", label: "Marketplace" },
+];
+
+const FALLBACK_NEARBY_STREETS = [
+  { id: 101, name: "Oak Lane", city: "Springfield", state: "IL" },
+  { id: 102, name: "Cedar Avenue", city: "Springfield", state: "IL" },
+  { id: 103, name: "Elm Street", city: "Springfield", state: "IL" },
+  { id: 104, name: "Pine Drive", city: "Springfield", state: "IL" },
+];
+
+const JOIN_SURVEY_QUESTIONS = [
+  { id: "sociability", label: "How important is neighbor sociability in your neighborhood?", scale: "Not important → Very important" },
+  { id: "know_names", label: "Do people on your street know each other's names?", scale: "Not at all → Very much so" },
+  { id: "events", label: "How often are events (block parties, gatherings) hosted?", scale: "Never → Very often" },
+  { id: "walkability", label: "How walkable is your neighborhood?", scale: "Not walkable → Very walkable" },
+  { id: "public_schools", label: "How important are good public schools nearby?", scale: "Not important → Very important" },
+  { id: "community_sense", label: "How would you rate your street's sense of community?", scale: "None → Strong" },
+];
+
+const PARTNER_SHOPS = [
+  { id: 1, name: "Tony's Pizza", icon: "🍕", items: [
+    { id: 1, name: "Large Cheese Pizza", price: 18.99, serves: "8-10", discount: 10 },
+    { id: 2, name: "Party Pack (3 Large)", price: 52.99, serves: "24-30", discount: 15 },
+    { id: 3, name: "Breadsticks (12)", price: 6.99, serves: "6-8" },
+  ]},
+  { id: 2, name: "Sub Station", icon: "🥪", items: [
+    { id: 4, name: "Party Sub (6 ft)", price: 89.99, serves: "30-40", discount: 12 },
+    { id: 5, name: "Sub Platter (6)", price: 45.99, serves: "12-18" },
+  ]},
+  { id: 3, name: "Sweet Treats", icon: "🍰", items: [
+    { id: 6, name: "Cookie Platter", price: 32.99, serves: "18-24" },
+    { id: 7, name: "Cupcake Tray (24)", price: 44.99, serves: "24" },
+  ]},
+];
+
+const SAMPLE_EVENTS = [
+  { id: 1, title: "Summer Block Party", date: "2024-07-15", time: "4:00 PM", host: "247", description: "Bring a dish to share. Games for kids, bounce house, live music.", type: "party", attendees: 12, going: false, needsFunding: true, fundingGoal: 300, fundingRaised: 185, fundingBackers: 9, fundingDescription: "Bounce house, DJ, decorations." },
+  { id: 2, title: "Neighborhood Garage Sale", date: "2024-06-22", time: "8:00 AM", host: "Multiple", description: "Multi-family garage sale. Maps at Oak & Main.", type: "sale", attendees: 8, going: false, needsFunding: false },
+];
+
+const SAMPLE_TASKS = [
+  { id: 1, title: "Help setting up new computer", category: "tech", host: "267", description: "Need help transferring files. Coffee provided!", urgency: "low", offers: 2 },
+  { id: 2, title: "Lawn mow while on vacation", category: "yard", host: "134", description: "One mow July 14–20. Will pay!", urgency: "medium", offers: 1 },
+];
+
+const SAMPLE_HELPERS = [
+  { id: 1, title: "Snow Removal", host: "156", price: "$20/driveway", description: "Shovel driveway and walkway. Salt included.", availability: "Winter" },
+  { id: 2, title: "Lawn Mowing", host: "423", price: "$25/mow", description: "Weekly or one-time. Edging included.", availability: "Spring–Fall" },
+];
+
+const SAMPLE_LISTINGS = [
+  { id: 1, title: "Vintage Wooden Desk", price: 150, host: "247", description: "Solid oak, 48×24×30. Some wear.", category: "furniture", image: "https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=256&h=256&fit=crop" },
+  { id: 2, title: "Kids Bike 20\"", price: 45, host: "189", description: "Blue Schwinn, training wheels included.", category: "sports", image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=256&h=256&fit=crop" },
+];
 
 const Community = () => {
   const { streetId } = useParams();
-  const [activeTab, setActiveTab] = useState("events");
+  const isDemo = streetId === "demo";
   const [street, setStreet] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(isDemo);
   const [verificationCode, setVerificationCode] = useState("");
   const [verifyError, setVerifyError] = useState("");
+  const [activeTab, setActiveTab] = useState("events");
 
-  // Modal states
+  const [events, setEvents] = useState(SAMPLE_EVENTS);
+  const [tasks, setTasks] = useState(SAMPLE_TASKS);
+  const [helpers, setHelpers] = useState(SAMPLE_HELPERS);
+  const [listings, setListings] = useState(SAMPLE_LISTINGS);
+
   const [showEventModal, setShowEventModal] = useState(false);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showHelperModal, setShowHelperModal] = useState(false);
-  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(null);
-  const [showContactModal, setShowContactModal] = useState(null);
-  const [showListingModal, setShowListingModal] = useState(null);
-  const [showManagementModal, setShowManagementModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showInviteApprovalModal, setShowInviteApprovalModal] = useState(false);
-  const [managementMenuOpen, setManagementMenuOpen] = useState(false);
+  const [showFoodPicker, setShowFoodPicker] = useState(false);
+  const [showNeighborhoodModal, setShowNeighborhoodModal] = useState(false);
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
 
-  // Form states
-  const [newEvent, setNewEvent] = useState({ 
+  const [outgoingInvites, setOutgoingInvites] = useState([]);
+  const [incomingInvites, setIncomingInvites] = useState([
+    { id: 1, fromStreet: "Oak Lane", fromCity: "Springfield", fromState: "IL", ourApprovals: 3, theirApprovals: 6 },
+  ]);
+  const [nearbyStreets, setNearbyStreets] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [showJoinSurvey, setShowJoinSurvey] = useState(false);
+  const [joinSurveyAnswers, setJoinSurveyAnswers] = useState({});
+  const [newEvent, setNewEvent] = useState({
     title: "", date: "", time: "", description: "", type: "party",
     needsFunding: false, fundingGoal: "", fundingDescription: "",
-    partnerShopItems: [] // Array of selected items from partner shops
+    partnerShopItems: [],
   });
-  const [showPartnerShops, setShowPartnerShops] = useState(false);
-  const [selectedShop, setSelectedShop] = useState(null);
-
-  // Partner shops data
-  const partnerShops = [
-    {
-      id: 1,
-      name: "Tony's Pizza",
-      type: "pizza",
-      icon: "🍕",
-      description: "Local favorite for block parties",
-      items: [
-        { id: 1, name: "Large Cheese Pizza", price: 18.99, serves: "8-10 people", discount: 10 },
-        { id: 2, name: "Large Pepperoni Pizza", price: 21.99, serves: "8-10 people" },
-        { id: 3, name: "Party Pack (3 Large Pizzas)", price: 52.99, serves: "24-30 people", discount: 15 },
-        { id: 4, name: "Breadsticks (12 pieces)", price: 6.99, serves: "6-8 people" },
-        { id: 5, name: "Wings (20 pieces)", price: 24.99, serves: "8-10 people", discount: 5 },
-      ]
-    },
-    {
-      id: 2,
-      name: "Sub Station",
-      type: "subs",
-      icon: "🥪",
-      description: "Fresh subs for any gathering",
-      items: [
-        { id: 6, name: "Party Sub (6 feet)", price: 89.99, serves: "30-40 people", discount: 12 },
-        { id: 7, name: "Party Sub (3 feet)", price: 49.99, serves: "15-20 people" },
-        { id: 8, name: "12-inch Sub Platter (6 subs)", price: 45.99, serves: "12-18 people" },
-        { id: 9, name: "Wrap Platter (10 wraps)", price: 39.99, serves: "10 people", discount: 8 },
-        { id: 10, name: "Salad Platter (large)", price: 34.99, serves: "12-15 people" },
-      ]
-    },
-    {
-      id: 3,
-      name: "BBQ Express",
-      type: "bbq",
-      icon: "🍖",
-      description: "Catering for neighborhood events",
-      items: [
-        { id: 11, name: "BBQ Platter (feeds 20)", price: 149.99, serves: "20 people", discount: 20 },
-        { id: 12, name: "Pulled Pork (5 lbs)", price: 64.99, serves: "15-20 people" },
-        { id: 13, name: "Chicken Wings (50 pieces)", price: 54.99, serves: "15-20 people", discount: 10 },
-        { id: 14, name: "Side Dishes Platter", price: 29.99, serves: "12-15 people" },
-      ]
-    },
-    {
-      id: 4,
-      name: "Sweet Treats Bakery",
-      type: "desserts",
-      icon: "🍰",
-      description: "Desserts for special occasions",
-      items: [
-        { id: 15, name: "Cookie Platter (3 dozen)", price: 32.99, serves: "18-24 people" },
-        { id: 16, name: "Cupcake Tray (24 cupcakes)", price: 44.99, serves: "24 people" },
-        { id: 17, name: "Sheet Cake (serves 30)", price: 59.99, serves: "30 people" },
-        { id: 18, name: "Brownie Platter (2 dozen)", price: 28.99, serves: "24 people" },
-      ]
-    },
-    {
-      id: 5,
-      name: "Beverage Express",
-      type: "drinks",
-      icon: "🥤",
-      description: "Drinks for your event",
-      items: [
-        { id: 19, name: "Soda Pack (48 cans)", price: 24.99, serves: "24-30 people" },
-        { id: 20, name: "Water Bottles (48 pack)", price: 19.99, serves: "48 people" },
-        { id: 21, name: "Lemonade (5 gallons)", price: 34.99, serves: "40-50 people" },
-        { id: 22, name: "Juice Boxes (36 pack)", price: 22.99, serves: "36 people" },
-      ]
-    }
-  ];
-  const [newTask, setNewTask] = useState({ title: "", description: "", category: "other", urgency: "low" });
-  const [newHelper, setNewHelper] = useState({ title: "", price: "", description: "", availability: "" });
-  const [newListing, setNewListing] = useState({ 
-    title: "", price: "", description: "", category: "other", condition: "good",
-    listingType: "sell", photos: [], photoPreview: null
-  });
-
-  // Data states - Events now include optional crowdfunding
-  const [events, setEvents] = useState([
-    { 
-      id: 1, title: "Summer Block Party 🎉", date: "2024-07-15", time: "4:00 PM", houseNumber: "247", 
-      description: "Annual summer cookout! Bring a dish to share. We'll have games for kids, a bounce house, and live music from a local band. BYOB but we'll have lemonade and water for everyone!", 
-      attendees: 12, type: "party", going: false,
-      // Crowdfunding fields
-      needsFunding: true, fundingGoal: 300, fundingRaised: 185, fundingBackers: 9,
-      fundingDescription: "Bounce house rental, DJ, decorations, and drinks for everyone!"
-    },
-    { 
-      id: 2, title: "Neighborhood Garage Sale", date: "2024-06-22", time: "8:00 AM", houseNumber: "Multiple", 
-      description: "Multi-family garage sale spanning 8 houses. Maps available at corner of Oak & Main. Rain date: June 29th.", 
-      attendees: 8, type: "sale", going: false,
-      needsFunding: false
-    },
-    { 
-      id: 3, title: "Kids Bike Parade 🚲", date: "2024-07-04", time: "10:00 AM", houseNumber: "189", 
-      description: "Decorate your bikes and join us for a patriotic parade down the block! We'll end at the park for popsicles. All ages welcome!", 
-      attendees: 15, type: "activity", going: false,
-      needsFunding: true, fundingGoal: 100, fundingRaised: 100, fundingBackers: 8,
-      fundingDescription: "Popsicles and patriotic decorations for all the kids!"
-    },
-    { 
-      id: 4, title: "Holiday Block Party", date: "2024-12-15", time: "5:00 PM", houseNumber: "312", 
-      description: "Hot cocoa, caroling, and holiday cheer! Bring your favorite holiday treats to share.", 
-      attendees: 6, type: "party", going: false,
-      needsFunding: true, fundingGoal: 250, fundingRaised: 85, fundingBackers: 4,
-      fundingDescription: "Tents, decorations, hot cocoa station for our annual holiday gathering!"
-    },
-    { 
-      id: 5, title: "Back-to-School Ice Cream Social", date: "2024-08-20", time: "3:00 PM", houseNumber: "423", 
-      description: "Welcome families back with an ice cream truck visit! Kids eat free, adults $2 suggested.", 
-      attendees: 10, type: "activity", going: false,
-      needsFunding: true, fundingGoal: 150, fundingRaised: 75, fundingBackers: 5,
-      fundingDescription: "Ice cream truck rental for the neighborhood kids!"
-    },
-  ]);
-
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Help setting up new computer", category: "tech", houseNumber: "267", urgency: "low", description: "Need help transferring files from old laptop and setting up email on new one. Happy to provide snacks and coffee!", offers: 2 },
-    { id: 2, title: "Quick lawn mow needed", category: "yard", houseNumber: "134", urgency: "medium", description: "Going on vacation Saturday morning, need someone to mow lawn once while we're gone (back July 20). Will pay!", offers: 1 },
-    { id: 3, title: "Pet sitting (2 cats) July 10-15", category: "pets", houseNumber: "389", urgency: "low", description: "Feed twice daily, scoop litter, give some love. Happy to return the favor anytime! Keys provided.", offers: 3 },
-  ]);
-
-  const [localHelpers, setLocalHelpers] = useState([
-    { id: 1, title: "Snow Removal", houseNumber: "156", price: "$20/driveway", description: "Will shovel your driveway and walkway after snowfall. Salt included! Usually done by 8am.", availability: "Winter season", rating: 4.8, reviews: 12 },
-    { id: 2, title: "Lawn Mowing", houseNumber: "423", price: "$25/mow", description: "Weekly or one-time mowing. I have my own equipment. Edging included.", availability: "Spring-Fall", rating: 5.0, reviews: 8 },
-    { id: 3, title: "Dog Walking", houseNumber: "267", price: "$15/walk", description: "30-minute walks, flexible scheduling. Love all dogs! Can do multiple dogs from same household.", availability: "Year-round", rating: 4.9, reviews: 15 },
-    { id: 4, title: "Tech Support", houseNumber: "312", price: "$30/hour", description: "Computer setup, WiFi issues, phone help, smart home devices. Patient with all skill levels!", availability: "Evenings & weekends", rating: 5.0, reviews: 6 },
-  ]);
-
-  // Marketplace listings
-  // Neighborhood hub invites
-  const [neighborhoodInvites, setNeighborhoodInvites] = useState([
-    // Outgoing invites (initiated by this street)
-    {
-      id: 1,
-      type: "outgoing",
-      invitedStreetId: 2,
-      invitedStreetName: "Oak Avenue",
-      invitedStreetCity: "Springfield",
-      invitedStreetState: "IL",
-      status: "pending_approval", // pending_approval -> sent -> accepted/rejected
-      createdBy: "John D.",
-      createdAt: "2024-06-20",
-      approvals: 8,
-      approvalsNeeded: 5, // Minimum approvals needed
-      totalResidents: 15,
-      voters: ["user1", "user2", "user3", "user4", "user5", "user6", "user7", "user8"]
-    },
-  ]);
-  const [incomingInvites, setIncomingInvites] = useState([
-    // Incoming invites (from other streets)
-    {
-      id: 2,
-      type: "incoming",
-      fromStreetId: 3,
-      fromStreetName: "Park Boulevard",
-      fromStreetCity: "Springfield",
-      fromStreetState: "IL",
-      status: "pending_approval", // pending_approval -> accepted/rejected
-      createdBy: "Jane S.",
-      createdAt: "2024-06-18",
-      approvals: 3,
-      approvalsNeeded: 5,
-      totalResidents: 12,
-      voters: ["user1", "user2", "user3"],
-      message: "Join our neighborhood hub! We'd love to collaborate on events and community activities."
-    },
-  ]);
-  const [inviteSearch, setInviteSearch] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showFirstResidentCelebration, setShowFirstResidentCelebration] = useState(false);
-  const [selectedStreetForInvite, setSelectedStreetForInvite] = useState(null);
-  const [inviteMessage, setInviteMessage] = useState("");
-  const searchTimeoutRef = useRef(null);
-
-  const [marketplaceListings, setMarketplaceListings] = useState([
-    { 
-      id: 1, title: "Vintage Wooden Desk", price: 150, houseNumber: "247", 
-      description: "Beautiful solid oak desk from the 1970s. Some wear but very sturdy. Great for home office. Dimensions: 48\" x 24\" x 30\".", 
-      category: "furniture", condition: "good", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400"],
-      postedDate: "2024-06-15", interested: 3
-    },
-    { 
-      id: 2, title: "Kids Bike - 20\"", price: 45, houseNumber: "189", 
-      description: "Outgrew it! Blue Schwinn, works great. Minor scratches. Comes with training wheels if needed.", 
-      category: "sports", condition: "good", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400"],
-      postedDate: "2024-06-18", interested: 5
-    },
-    { 
-      id: 3, title: "Moving Boxes - FREE", price: 0, houseNumber: "312", 
-      description: "About 20 assorted moving boxes. Various sizes. First come first served - grab them from the driveway!", 
-      category: "free", condition: "used", listingType: "free",
-      photos: [],
-      postedDate: "2024-06-20", interested: 2
-    },
-    { 
-      id: 4, title: "Lawn Mower", price: 0, houseNumber: "423", 
-      description: "Honda self-propelled mower. Looking to borrow a pressure washer in exchange for a weekend. Or $200 to buy.", 
-      category: "outdoor", condition: "excellent", listingType: "trade",
-      photos: ["https://images.unsplash.com/photo-1590212151175-e58edd96185b?w=400"],
-      postedDate: "2024-06-19", interested: 1
-    },
-    { 
-      id: 5, title: "Baby Crib + Mattress", price: 75, houseNumber: "156", 
-      description: "Graco crib in excellent condition, barely used. Includes waterproof mattress. Non-smoking home.", 
-      category: "baby", condition: "excellent", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1586105449897-20b5efeb3233?w=400"],
-      postedDate: "2024-06-21", interested: 4
-    },
-    { 
-      id: 6, title: "Garden Tools Bundle", price: 35, houseNumber: "267", 
-      description: "Rake, shovel, hoe, and hand tools. Moving to a condo - don't need them anymore!", 
-      category: "outdoor", condition: "good", listingType: "sell",
-      photos: [],
-      postedDate: "2024-06-17", interested: 2
-    },
-  ]);
-
-  const isDemo = streetId === "demo";
 
   useEffect(() => {
-    fetchStreetData();
-    checkVerification();
-  }, [streetId]);
-
-  const fetchStreetData = async () => {
-    // Demo mode - use sample street data
     if (isDemo) {
       setStreet({ name: "Maple Street", city: "Springfield", state: "IL" });
-      if (!sessionStorage.getItem(`firstResidentSeen_${streetId}`)) {
-        setShowFirstResidentCelebration(true);
-      }
       setLoading(false);
       return;
     }
-    
-    try {
-      const response = await fetch(`${API_URL}/streets/${streetId}/vibe`);
-      if (response.ok) {
-        const data = await response.json();
-        setStreet(data.street);
-        const surveyCount = data.street?.survey_count ?? 0;
-        const seenKey = `firstResidentSeen_${streetId}`;
-        if (surveyCount === 1 && !sessionStorage.getItem(seenKey)) {
-          setShowFirstResidentCelebration(true);
+    const fetchStreet = async () => {
+      try {
+        const res = await fetch(`${API_URL}/streets/${streetId}/vibe`);
+        if (res.ok) {
+          const data = await res.json();
+          setStreet(data.street);
         }
+      } catch {
+        setStreet({ name: "Street", city: "", state: "" });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching street:", error);
+    };
+    fetchStreet();
+  }, [streetId, isDemo]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    const verifiedId = localStorage.getItem("verifiedStreetId");
+    const verifiedList = JSON.parse(localStorage.getItem("verifiedStreets") || "[]");
+    if (verifiedId && parseInt(verifiedId) === parseInt(streetId)) setIsVerified(true);
+    else if (verifiedList.includes(parseInt(streetId))) setIsVerified(true);
+  }, [streetId, isDemo]);
+
+  useEffect(() => {
+    if (isVerified && !loading) {
+      const key = `communitySurveyDone_${isDemo ? "demo" : streetId}`;
+      if (!localStorage.getItem(key)) setShowJoinSurvey(true);
+    }
+  }, [isVerified, loading, isDemo, streetId]);
+
+  const fetchNearbyStreets = async () => {
+    setNearbyLoading(true);
+    try {
+      let lat, lon;
+      if (street?.latitude && street?.longitude) {
+        lat = parseFloat(street.latitude);
+        lon = parseFloat(street.longitude);
+      } else if (navigator.geolocation) {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+        });
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      } else {
+        setNearbyStreets(FALLBACK_NEARBY_STREETS);
+        return;
+      }
+      const res = await fetch(`${API_URL}/nearby-streets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lon }),
+      });
+      const data = await res.json();
+      if (res.ok && data.streets?.length) {
+        setNearbyStreets(data.streets);
+      } else {
+        setNearbyStreets(FALLBACK_NEARBY_STREETS);
+      }
+    } catch {
+      setNearbyStreets(FALLBACK_NEARBY_STREETS);
     } finally {
-      setLoading(false);
+      setNearbyLoading(false);
     }
   };
 
-  const checkVerification = async () => {
-    // Demo mode - check if demo was verified
-    if (isDemo && localStorage.getItem("demoVerified") === "true") {
-      setIsVerified(true);
-      return;
+  useEffect(() => {
+    if (showNeighborhoodModal && nearbyStreets.length === 0 && !nearbyLoading) {
+      fetchNearbyStreets();
     }
-    
-    // localStorage from CommunityGateway (returning neighbor or doc upload)
-    const verifiedStreetId = localStorage.getItem("verifiedStreetId");
-    if (verifiedStreetId && parseInt(verifiedStreetId) === parseInt(streetId)) {
-      setIsVerified(true);
-      return;
-    }
-    
-    const verifiedStreets = JSON.parse(localStorage.getItem("verifiedStreets") || "[]");
-    if (verifiedStreets.includes(parseInt(streetId))) {
-      setIsVerified(true);
-      return;
-    }
-    
-    // Logged-in user: check if their account has verified access to this street
-    try {
-      const response = await fetch(`${API_URL}/community/has-access/${streetId}`, { credentials: 'include' });
-      const data = await response.json();
-      if (data.hasAccess) {
-        setIsVerified(true);
-      }
-    } catch (_) {}
-  };
+  }, [showNeighborhoodModal]);
 
   const handleVerify = async () => {
     if (!verificationCode.trim()) {
-      setVerifyError("Please enter your verification code");
+      setVerifyError("Enter a code");
       return;
     }
-
-    // Demo mode - accept DEMO code directly
     if (isDemo && verificationCode.toUpperCase() === "DEMO") {
       setIsVerified(true);
       localStorage.setItem("demoVerified", "true");
       setVerifyError("");
       return;
     }
-
     try {
-      const response = await fetch(`${API_URL}/community/verify`, {
+      const res = await fetch(`${API_URL}/community/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ streetId, code: verificationCode })
+        body: JSON.stringify({ streetId, code: verificationCode }),
       });
-
-      const data = await response.json();
-      
+      const data = await res.json();
       if (data.verified) {
         setIsVerified(true);
-        const verifiedStreets = JSON.parse(localStorage.getItem("verifiedStreets") || "[]");
-        verifiedStreets.push(parseInt(streetId));
-        localStorage.setItem("verifiedStreets", JSON.stringify(verifiedStreets));
+        const list = JSON.parse(localStorage.getItem("verifiedStreets") || "[]");
+        list.push(parseInt(streetId));
+        localStorage.setItem("verifiedStreets", JSON.stringify(list));
         setVerifyError("");
       } else {
-        setVerifyError(data.error || "Invalid verification code");
+        setVerifyError(data.error || "Invalid code");
       }
-    } catch (error) {
-      setVerifyError("Verification failed. Please try again.");
+    } catch {
+      setVerifyError("Verification failed");
     }
   };
 
-  // Event handlers
-  // Partner shop functions
-  const handleAddShopItem = (shopId, item) => {
-    const shop = partnerShops.find(s => s.id === shopId);
-    const newItem = {
-      shopId,
-      shopName: shop.name,
-      shopIcon: shop.icon,
-      itemId: item.id,
-      itemName: item.name,
-      price: item.price,
-      discount: item.discount || 0,
-      serves: item.serves,
-      quantity: 1
-    };
-    setNewEvent({
-      ...newEvent,
-      partnerShopItems: [...newEvent.partnerShopItems, newItem]
-    });
-  };
-
-  const handleRemoveShopItem = (index) => {
-    const updatedItems = newEvent.partnerShopItems.filter((_, i) => i !== index);
-    setNewEvent({ ...newEvent, partnerShopItems: updatedItems });
-  };
-
-  const handleUpdateItemQuantity = (index, quantity) => {
-    if (quantity < 1) return;
-    const updatedItems = [...newEvent.partnerShopItems];
-    updatedItems[index].quantity = quantity;
-    setNewEvent({ ...newEvent, partnerShopItems: updatedItems });
-  };
-
-  const getTotalShopCost = () => {
-    return newEvent.partnerShopItems.reduce((total, item) => {
-      const discountedPrice = item.discount ? item.price * (1 - item.discount / 100) : item.price;
-      return total + (discountedPrice * item.quantity);
-    }, 0);
-  };
-
-  const getDiscountedPrice = (price, discount) => {
-    if (!discount || discount === 0) return price;
-    return price * (1 - discount / 100);
-  };
-
-  // Demo streets for invite search fallback (when API unavailable)
-  const DEMO_INVITE_STREETS = [
-    { id: 1, name: "Oak Avenue", city: "Boston", state: "MA" },
-    { id: 2, name: "Maple Lane", city: "Boston", state: "MA" },
-    { id: 3, name: "Cedar Drive", city: "Cambridge", state: "MA" },
-    { id: 4, name: "Pine Street", city: "Somerville", state: "MA" },
-    { id: 5, name: "Elm Court", city: "Brookline", state: "MA" },
-    { id: 6, name: "Park Boulevard", city: "Springfield", state: "IL" },
-    { id: 7, name: "Main Street", city: "Springfield", state: "IL" },
-    { id: 8, name: "First Avenue", city: "Cambridge", state: "MA" },
-  ];
-
-  const handleSearchStreets = async (query) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const q = query.trim().toLowerCase();
-    const currentStreetId = parseInt(streetId);
-    const invitedIds = neighborhoodInvites.map(inv => inv.invitedStreetId);
-
-    try {
-      const params = new URLSearchParams({ q: query });
-      if (street?.city) params.set("city", street.city);
-      if (street?.state) params.set("state", street.state);
-      const response = await fetch(`${API_URL}/search?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        const streets = (data.streets || []).filter(s => s.id !== currentStreetId && !invitedIds.includes(s.id));
-        setSearchResults(streets);
-        return;
-      }
-      throw new Error("Search failed");
-    } catch (error) {
-      console.error("Error searching streets:", error);
-      // Fallback: filter demo streets by name, city, or state
-      const fallback = DEMO_INVITE_STREETS.filter(
-        s =>
-          s.id !== currentStreetId &&
-          !invitedIds.includes(s.id) &&
-          (s.name.toLowerCase().includes(q) ||
-            (s.city && s.city.toLowerCase().includes(q)) ||
-            (s.state && s.state.toLowerCase().includes(q)))
-      );
-      setSearchResults(fallback);
-    }
-  };
-
-  const handleCreateInvite = () => {
-    if (!selectedStreetForInvite) return;
-    
-    const newInvite = {
-      id: Date.now(),
-      type: "outgoing",
-      invitedStreetId: selectedStreetForInvite.id,
-      invitedStreetName: selectedStreetForInvite.name,
-      invitedStreetCity: selectedStreetForInvite.city,
-      invitedStreetState: selectedStreetForInvite.state,
-      status: "pending_approval",
-      createdBy: "You", // In real app, use actual user name
-      createdAt: new Date().toISOString().split('T')[0],
-      approvals: 0,
-      approvalsNeeded: 5, // Could be dynamic based on street size
-      totalResidents: 15, // Mock data
-      voters: [],
-      message: inviteMessage
-    };
-    
-    setNeighborhoodInvites([...neighborhoodInvites, newInvite]);
-    setSelectedStreetForInvite(null);
-    setInviteMessage("");
-    setInviteSearch("");
-    setSearchResults([]);
-    setShowInviteModal(false);
-  };
-
-  const handleApproveOutgoingInvite = (inviteId) => {
-    const userId = `user_${Date.now()}`; // Mock user ID
-    setNeighborhoodInvites(neighborhoodInvites.map(inv => {
-      if (inv.id === inviteId && !inv.voters.includes(userId)) {
-        const newApprovals = inv.approvals + 1;
-        const newStatus = newApprovals >= inv.approvalsNeeded ? "sent" : "pending_approval";
-        return {
-          ...inv,
-          approvals: newApprovals,
-          status: newStatus,
-          voters: [...inv.voters, userId]
-        };
-      }
-      return inv;
-    }));
-  };
-
-  const handleApproveIncomingInvite = (inviteId) => {
-    const userId = `user_${Date.now()}`; // Mock user ID
-    setIncomingInvites(incomingInvites.map(inv => {
-      if (inv.id === inviteId && !inv.voters.includes(userId)) {
-        const newApprovals = inv.approvals + 1;
-        const newStatus = newApprovals >= inv.approvalsNeeded ? "accepted" : "pending_approval";
-        return {
-          ...inv,
-          approvals: newApprovals,
-          status: newStatus,
-          voters: [...inv.voters, userId]
-        };
-      }
-      return inv;
-    }));
-  };
-
-  const handleRejectIncomingInvite = (inviteId) => {
-    setIncomingInvites(incomingInvites.map(inv => 
-      inv.id === inviteId ? { ...inv, status: "rejected" } : inv
-    ));
-  };
-
-  const handleCreateEvent = () => {
-    if (!newEvent.title || !newEvent.date || !newEvent.time) {
-      alert("Please fill in title, date, and time");
-      return;
-    }
-    if (newEvent.needsFunding && !newEvent.fundingGoal) {
-      alert("Please enter a funding goal amount");
-      return;
-    }
-    const event = {
+  const handlePostEvent = () => {
+    if (!newEvent.title || !newEvent.date || !newEvent.time) return;
+    const evt = {
       id: Date.now(),
       ...newEvent,
-      houseNumber: "Your House",
+      host: "You",
       attendees: 1,
       going: true,
-      // Initialize funding if enabled
-      fundingGoal: newEvent.needsFunding ? parseInt(newEvent.fundingGoal) : 0,
+      needsFunding: newEvent.needsFunding,
+      fundingGoal: newEvent.needsFunding ? parseInt(newEvent.fundingGoal) || 0 : 0,
       fundingRaised: 0,
-      fundingBackers: 0
+      fundingBackers: 0,
+      fundingDescription: newEvent.fundingDescription || "",
     };
-    setEvents([event, ...events]);
+    setEvents([evt, ...events]);
     setNewEvent({ title: "", date: "", time: "", description: "", type: "party", needsFunding: false, fundingGoal: "", fundingDescription: "", partnerShopItems: [] });
-    setShowPartnerShops(false);
-    setSelectedShop(null);
     setShowEventModal(false);
+    setShowFoodPicker(false);
   };
 
-  const handleGoingToggle = (eventId) => {
-    setEvents(events.map(e => {
-      if (e.id === eventId) {
-        return {
-          ...e,
-          going: !e.going,
-          attendees: e.going ? e.attendees - 1 : e.attendees + 1
-        };
-      }
-      return e;
+  const addFoodItem = (shop, item) => {
+    const entry = { shopId: shop.id, shopName: shop.name, shopIcon: shop.icon, itemId: item.id, itemName: item.name, price: item.price, discount: item.discount || 0, quantity: 1 };
+    setNewEvent({ ...newEvent, partnerShopItems: [...newEvent.partnerShopItems, entry] });
+    setShowFoodPicker(false);
+  };
+
+  const removeFoodItem = (idx) => {
+    setNewEvent({ ...newEvent, partnerShopItems: newEvent.partnerShopItems.filter((_, i) => i !== idx) });
+  };
+
+  const handleGoing = (eid) => {
+    setEvents(events.map(e => e.id === eid ? { ...e, going: !e.going, attendees: e.going ? e.attendees - 1 : e.attendees + 1 } : e));
+  };
+
+  const handleChipIn = (eid, amount) => {
+    setEvents(prev => prev.map(e => {
+      if (e.id !== eid || !e.needsFunding) return e;
+      return { ...e, fundingRaised: (e.fundingRaised || 0) + amount, fundingBackers: (e.fundingBackers || 0) + 1 };
     }));
   };
 
-  const handleCreateTask = () => {
-    if (!newTask.title || !newTask.description) {
-      alert("Please fill in title and description");
-      return;
-    }
-    const task = {
-      id: Date.now(),
-      ...newTask,
-      houseNumber: "Your House",
-      offers: 0
-    };
-    setTasks([task, ...tasks]);
-    setNewTask({ title: "", description: "", category: "other", urgency: "low" });
-    setShowTaskModal(false);
+  const handleInviteStreet = (street) => {
+    setOutgoingInvites(prev => [...prev, { ...street, ourApprovals: 1, theirApprovals: 0 }]);
   };
 
-  const handleOfferHelp = (taskId) => {
-    setTasks(tasks.map(t => {
-      if (t.id === taskId) {
-        return { ...t, offers: t.offers + 1 };
-      }
-      return t;
-    }));
-    alert("Thanks for offering to help! Walk over to their house to coordinate. 🏠");
+  const handleApproveIncoming = (inviteId) => {
+    setIncomingInvites(prev => prev.map(inv => inv.id === inviteId ? { ...inv, ourApprovals: Math.min(6, (inv.ourApprovals || 0) + 1) } : inv));
   };
 
-  const handleChipIn = (eventId, amount) => {
-    setEvents(events.map(e => {
-      if (e.id === eventId) {
-        const newRaised = (e.fundingRaised || 0) + amount;
-        return {
-          ...e,
-          fundingRaised: newRaised,
-          fundingBackers: (e.fundingBackers || 0) + 1
-        };
-      }
-      return e;
-    }));
-    alert(`Thanks for chipping in $${amount}! 🎉`);
+  const handleApproveOutgoing = (invStreetId) => {
+    setOutgoingInvites(prev => prev.map(inv => inv.id === invStreetId ? { ...inv, ourApprovals: Math.min(6, (inv.ourApprovals || 0) + 1) } : inv));
   };
 
-  const handleCreateHelper = () => {
-    if (!newHelper.title || !newHelper.price || !newHelper.description) {
-      alert("Please fill in service name, price, and description");
-      return;
-    }
-    const helper = {
-      id: Date.now(),
-      ...newHelper,
-      houseNumber: "Your House",
-      rating: 5.0,
-      reviews: 0
-    };
-    setLocalHelpers([helper, ...localHelpers]);
-    setNewHelper({ title: "", price: "", description: "", availability: "" });
-    setShowHelperModal(false);
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = { tech: "💻", yard: "🌿", pets: "🐾", moving: "📦", errands: "🏃", other: "✨" };
-    return icons[category] || "✨";
-  };
-
-  const getEventIcon = (type) => {
-    const icons = { party: "🎉", sale: "🏷️", activity: "🎯", meeting: "📋", other: "📅" };
-    return icons[type] || "📅";
-  };
-
-  const getServiceIcon = (title) => {
-    const lower = title.toLowerCase();
-    if (lower.includes("snow")) return "❄️";
-    if (lower.includes("lawn") || lower.includes("yard")) return "🌿";
-    if (lower.includes("dog") || lower.includes("pet")) return "🐕";
-    if (lower.includes("tech") || lower.includes("computer")) return "💻";
-    return "🔧";
-  };
-
-  const getMarketplaceIcon = (category) => {
-    const icons = { 
-      furniture: "🪑", electronics: "📱", sports: "⚽", outdoor: "🌿", 
-      baby: "👶", clothing: "👕", books: "📚", free: "🎁", other: "📦" 
-    };
-    return icons[category] || "📦";
-  };
-
-  const getConditionBadge = (condition) => {
-    const badges = {
-      "new": { text: "New", class: "bg-green-100 text-green-700" },
-      "excellent": { text: "Like New", class: "bg-blue-100 text-blue-700" },
-      "good": { text: "Good", class: "bg-yellow-100 text-yellow-700" },
-      "fair": { text: "Fair", class: "bg-orange-100 text-orange-700" },
-      "used": { text: "Used", class: "bg-gray-100 text-gray-700" }
-    };
-    return badges[condition] || badges["good"];
-  };
-
-  const handleCreateListing = () => {
-    if (!newListing.title || !newListing.description) {
-      alert("Please fill in title and description");
-      return;
-    }
-    if (newListing.listingType === "sell" && !newListing.price) {
-      alert("Please enter a price for items you're selling");
-      return;
-    }
-    const listing = {
-      id: Date.now(),
-      ...newListing,
-      price: newListing.listingType === "free" ? 0 : parseInt(newListing.price) || 0,
-      houseNumber: "Your House",
-      postedDate: new Date().toISOString().split('T')[0],
-      interested: 0,
-      photos: newListing.photoPreview ? [newListing.photoPreview] : []
-    };
-    setMarketplaceListings([listing, ...marketplaceListings]);
-    setNewListing({ title: "", price: "", description: "", category: "other", condition: "good", listingType: "sell", photos: [], photoPreview: null });
-    setShowMarketplaceModal(false);
-  };
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewListing({ ...newListing, photoPreview: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleInterested = (listingId) => {
-    setMarketplaceListings(marketplaceListings.map(l => {
-      if (l.id === listingId) {
-        return { ...l, interested: l.interested + 1 };
-      }
-      return l;
-    }));
-    alert("Great! Walk over to their house to discuss. 🏠");
+  const handleJoinSurveySubmit = async () => {
+    const key = `communitySurveyDone_${isDemo ? "demo" : streetId}`;
+    localStorage.setItem(key, "1");
+    localStorage.setItem(`communitySurveyData_${isDemo ? "demo" : streetId}`, JSON.stringify(joinSurveyAnswers));
+    try {
+      await fetch(`${API_URL}/community/hub-survey`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          streetId: isDemo ? "demo" : streetId,
+          streetName: street?.name,
+          city: street?.city,
+          state: street?.state,
+          ...joinSurveyAnswers,
+        }),
+      });
+    } catch (_) {}
+    setShowJoinSurvey(false);
+    setJoinSurveyAnswers({});
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-warm-50">
+        <div className="w-8 h-8 border-2 border-leaf-pale border-t-leaf rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Verification Gate
   if (!isVerified) {
     return (
       <>
-        <Helmet>
-          <title>Community Hub - Verification Required | Happy Neighbor</title>
-        </Helmet>
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-          <nav className="sticky top-0 z-50 bg-white shadow-sm">
-            <div className="px-6 sm:px-10">
-              <div className="flex justify-between items-center h-14">
-                <Link to="/" className="flex items-center gap-2">
-                  <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
-                  <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight">
-                    Happy Neighbor
-                  </span>
-                </Link>
-                <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Home</Link>
-              </div>
-            </div>
-          </nav>
-
-          <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
-            <div className="max-w-md w-full">
-              <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 text-center">
-                <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
-                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <h1 className="text-2xl font-bold text-gray-900 mb-3">Community Hub Access</h1>
-                <p className="text-gray-600 mb-6">
-                  {isDemo 
-                    ? "This is a demo of the Community Hub. Enter the code below to explore!"
-                    : <>Exclusively for verified residents of <span className="font-semibold text-orange-600">{street?.name || "this street"}</span>.</>
-                  }
+        <Helmet><title>Verify | Happy Neighbor</title></Helmet>
+        <div className="min-h-screen flex flex-col bg-warm-50">
+          <Nav />
+          <div className="flex-1 flex items-center justify-center px-6 py-12">
+            <div className="max-w-sm w-full">
+              <h2 className="font-serif text-xl font-semibold text-stone-900 mb-2">Verify access</h2>
+              <p className="text-stone-600 text-sm mb-4">
+                {isDemo ? "Enter DEMO to explore." : `Residents of ${street?.name || "this street"} only.`}
+              </p>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => { setVerificationCode(e.target.value); setVerifyError(""); }}
+                placeholder={isDemo ? "DEMO" : "Code"}
+                className="w-full px-4 py-3 border border-stone-300 mb-2"
+              />
+              {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
+              <button onClick={handleVerify} className="w-full py-3 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors">
+                Unlock
+              </button>
+              {!isDemo && (
+                <p className="mt-4 text-sm text-stone-500 text-center">
+                  <Link to="/community" className="text-leaf hover:text-leaf-dark transition-colors">Join your hub</Link> to get a code.
                 </p>
-
-                {isDemo ? (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-left">
-                    <p className="text-sm font-semibold text-green-800">🎉 Demo Mode</p>
-                    <p className="text-sm text-green-700 mt-2">
-                      Type <span className="font-mono font-bold bg-green-100 px-2 py-0.5 rounded">DEMO</span> below to explore the Community Hub features!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 text-left">
-                    <p className="text-sm font-semibold text-orange-800">How to get access:</p>
-                    <ol className="text-sm text-orange-700 mt-2 space-y-1 list-decimal list-inside">
-                      <li>Submit a street review with address verification</li>
-                      <li>Once approved, receive your code via email</li>
-                      <li>Enter the code below to unlock</li>
-                    </ol>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    placeholder={isDemo ? "Type DEMO" : "Enter verification code"}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-center text-lg tracking-wider"
-                  />
-                  {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
-                  <button onClick={handleVerify} className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
-                    {isDemo ? "Explore Demo" : "Unlock Community Hub"}
-                  </button>
-                  {!isDemo && (
-                    <p className="text-xs text-gray-500">
-                      Don't have a code? <Link to="/submit" className="text-orange-600 hover:underline">Submit your street review</Link>
-                    </p>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -812,1331 +325,405 @@ const Community = () => {
     );
   }
 
-  // Main Community Hub
   return (
     <>
-      <Helmet>
-        <title>{street?.name} Community Hub | Happy Neighbor</title>
-      </Helmet>
-
-      {showFirstResidentCelebration && (
-        <FirstResidentCelebration
-          streetName={street?.name}
-          streetId={streetId}
-          onEnter={() => {
-            sessionStorage.setItem(`firstResidentSeen_${streetId}`, "true");
-            setShowFirstResidentCelebration(false);
-          }}
-        />
-      )}
-
-      <div className="min-h-screen bg-slate-50">
-        {/* Navigation */}
-        <nav className="sticky top-0 z-50 bg-white shadow-sm">
-          <div className="px-6 sm:px-10">
-            <div className="flex justify-between items-center h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
-                <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight">
-                  Happy Neighbor
+      <Helmet><title>{street?.name || "Community"} | Happy Neighbor</title></Helmet>
+      <div className="min-h-screen flex flex-col bg-warm-50">
+        <Nav />
+        <header className="border-b border-stone-200 bg-white relative">
+          <div className="w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16 py-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="inline-block px-2.5 py-1 text-xs font-medium bg-leaf-pale text-leaf rounded-sm mb-2">
+                  {isDemo ? "Demo" : "Verified"}
                 </span>
-              </Link>
-              <div className="flex items-center gap-4">
-                {!isDemo && <Link to={`/street/${streetId}`} className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Street Profile</Link>}
-                <Link to="/submit" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Share Your Street</Link>
-                <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Home</Link>
+                <h1 className="font-serif text-2xl font-semibold text-stone-900">
+                  {street?.name || "Maple Street"}
+                </h1>
+                <p className="text-stone-500 text-sm">{street?.city} {street?.state && `, ${street.state}`}</p>
               </div>
-            </div>
-          </div>
-        </nav>
-
-        {/* Header - Improved Readability */}
-        <div className="bg-gradient-to-r from-orange-600 to-amber-500">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 backdrop-blur rounded-full text-sm font-medium text-white ${isDemo ? "bg-green-500/30" : "bg-white/20"}`}>
-                  {isDemo ? "🎉 Demo Mode" : "✓ Verified Resident"}
-                </span>
-                {(neighborhoodInvites.some(inv => inv.status === "pending_approval") || incomingInvites.some(inv => inv.status === "pending_approval")) && (
-                  <span className="px-3 py-1 bg-orange-600 rounded-full text-sm font-medium text-white animate-pulse">
-                    🔔 Pending Invites
-                  </span>
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenuDropdown(!showMenuDropdown)}
+                  className="p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded transition-colors"
+                  aria-label="Menu"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="5" r="1.5" />
+                    <circle cx="12" cy="12" r="1.5" />
+                    <circle cx="12" cy="19" r="1.5" />
+                  </svg>
+                </button>
+                {showMenuDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMenuDropdown(false)} aria-hidden="true" />
+                    <div className="absolute right-0 top-full mt-1 py-1 w-48 bg-white border border-stone-200 rounded shadow-lg z-50">
+                      <button
+                        onClick={() => { setShowNeighborhoodModal(true); setShowMenuDropdown(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                      >
+                        Invite streets
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
-              {/* Management Menu Button */}
-              {isVerified && (
-                <div className="relative">
+            </div>
+          </div>
+        </header>
+        <div className="w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16 flex-1">
+          <div className="border-b border-stone-200 flex gap-1 pt-2">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 text-sm font-medium rounded-t transition-colors ${
+                  activeTab === tab.id ? "bg-white border border-stone-200 border-b-white -mb-px text-leaf" : "text-stone-500 hover:text-stone-700 hover:bg-stone-50/50"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="py-8 bg-white border border-t-0 border-stone-200 min-h-[320px]">
+            {activeTab === "events" && (
+              <div className="space-y-4 px-1">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pl-1 pr-2">
+                  <p className="text-sm text-stone-500">What&apos;s happening on your street</p>
                   <button
-                    onClick={() => setManagementMenuOpen(!managementMenuOpen)}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-colors"
-                    title="Street Management"
+                    onClick={() => setShowEventModal(true)}
+                    className="px-4 py-2 text-sm font-medium text-stone-900 bg-leaf-pale border border-leaf/30 rounded hover:bg-leaf hover:text-white hover:border-leaf transition-colors mr-2"
                   >
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                    </svg>
+                    Post event
                   </button>
-                  {managementMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setManagementMenuOpen(false)}></div>
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setShowInviteModal(true);
-                            setManagementMenuOpen(false);
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
-                        >
-                          <span className="text-xl">🏘️</span>
-                          <div>
-                            <div className="font-medium text-gray-900">Invite Local Streets</div>
-                            <div className="text-xs text-gray-500">Build a neighborhood hub</div>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowInviteApprovalModal(true);
-                            setManagementMenuOpen(false);
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3 border-t border-gray-100"
-                        >
-                          <span className="text-xl">📋</span>
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900 flex items-center gap-2">
-                              Manage Invites
-                              {(neighborhoodInvites.some(inv => inv.status === "pending_approval") || incomingInvites.some(inv => inv.status === "pending_approval")) && (
-                                <span className="px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
-                                  {(neighborhoodInvites.filter(inv => inv.status === "pending_approval").length + incomingInvites.filter(inv => inv.status === "pending_approval").length)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-500">Review pending invites</div>
-                          </div>
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
-              )}
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-sm mb-1">{street?.name} Community Hub</h1>
-            <p className="text-orange-100">{street?.city}, {street?.state}</p>
-            <p className="text-white/80 text-sm mt-3 flex items-center gap-2 bg-black/10 rounded-lg px-3 py-2 w-fit">
-              <span>🏠</span>
-              <span>Posts show house numbers only — walk over and say hi!</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex gap-1 overflow-x-auto">
-              {[
-                { id: "events", label: "Events & Fundraising", icon: "📅" },
-                { id: "marketplace", label: "Marketplace", icon: "🛒" },
-                { id: "tasks", label: "Task Board", icon: "🤝" },
-                { id: "helpers", label: "Local Helpers", icon: "⭐" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-5 py-4 font-medium whitespace-nowrap transition-all border-b-2 ${
-                    activeTab === tab.id
-                      ? "border-orange-500 text-orange-600 bg-orange-50"
-                      : "border-transparent text-gray-600 hover:text-orange-600 hover:bg-orange-50/50"
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>{tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          
-          {/* Events Tab */}
-          {activeTab === "events" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Events & Fundraising</h2>
-                  <p className="text-gray-500 text-sm mt-1">Block parties, garage sales, and neighborhood fun — with optional crowdfunding!</p>
-                </div>
-                <button onClick={() => setShowEventModal(true)} className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all flex items-center gap-2">
-                  <span>+</span> Post Event
-                </button>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                <p className="text-sm text-amber-800 flex items-center gap-2">
-                  <span>💡</span>
-                  <span>Need funding for your event? Enable crowdfunding when posting to let neighbors chip in for supplies, rentals, and more!</span>
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {events.map((event) => {
-                  const isFunded = event.needsFunding && event.fundingRaised >= event.fundingGoal;
-                  const fundingPercent = event.needsFunding ? Math.min((event.fundingRaised / event.fundingGoal) * 100, 100) : 0;
-                  
-                  return (
-                    <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all flex flex-col">
-                      <div className="p-5 flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="text-3xl">{getEventIcon(event.type)}</span>
-                          <div className="flex items-center gap-2">
-                            {event.needsFunding && (
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${isFunded ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                                {isFunded ? "💰 Funded!" : "💰 Raising funds"}
-                              </span>
-                            )}
-                            <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full">{event.attendees} going</span>
-                          </div>
-                        </div>
-                        <h3 className="font-bold text-gray-900 text-lg mb-2">{event.title}</h3>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{event.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>📅 {event.date}</span>
-                          <span>🕓 {event.time}</span>
-                        </div>
-                        {event.partnerShopItems && event.partnerShopItems.length > 0 && (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-blue-600 font-medium">
-                            <span>🍕</span>
-                            <span>Food & drinks ordered</span>
-                          </div>
-                        )}
-                        <p className="text-xs text-orange-600 font-medium mt-3">🏠 Posted by #{event.houseNumber}</p>
-
-                        {/* Crowdfunding Section */}
-                        {event.needsFunding && (
-                          <div className="mt-4 pt-4 border-t border-gray-100">
-                            <div className="flex justify-between text-xs mb-1.5">
-                              <span className="font-semibold text-gray-700">${event.fundingRaised || 0} raised</span>
-                              <span className="text-gray-500">of ${event.fundingGoal} goal</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                              <div 
-                                className={`h-2 rounded-full transition-all ${isFunded ? "bg-green-500" : "bg-orange-500"}`}
-                                style={{ width: `${fundingPercent}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500">{event.fundingBackers || 0} neighbors chipped in</p>
-                            
-                            {!isFunded && (
-                              <div className="flex gap-2 mt-3">
-                                <button onClick={() => handleChipIn(event.id, 5)} className="flex-1 px-2 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors">$5</button>
-                                <button onClick={() => handleChipIn(event.id, 10)} className="flex-1 px-2 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors">$10</button>
-                                <button onClick={() => handleChipIn(event.id, 25)} className="flex-1 px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs hover:bg-orange-600 transition-colors">$25</button>
+                {events.map((e) => (
+                  <div key={e.id} className="border border-stone-100 bg-warm-50/50 p-5 hover:border-stone-200 transition-colors">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-leaf-pale text-leaf rounded-sm mb-2">{e.type}</span>
+                        <h3 className="font-medium text-stone-900">{e.title}</h3>
+                        <p className="text-sm text-stone-500 mt-1">{e.date} · {e.time} · #{e.host}</p>
+                        <p className="text-stone-600 mt-2 text-sm leading-relaxed">{e.description}</p>
+                        {e.needsFunding && (
+                          <div className="mt-3 p-3 bg-white border border-stone-100 rounded">
+                            <p className="text-xs font-medium text-stone-500 mb-1">Chip in: {e.fundingDescription}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 h-3 bg-stone-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-[width] duration-700 ease-out"
+                                  style={{
+                                    width: `${e.fundingGoal > 0 ? Math.min(100, ((e.fundingRaised || 0) / e.fundingGoal) * 100) : 0}%`,
+                                    background: "linear-gradient(to right, #c4915c 0%, #7a9a85 50%, #5c7f6c 100%)",
+                                  }}
+                                />
                               </div>
-                            )}
+                              <span className="text-sm text-stone-600">${e.fundingRaised || 0} / ${e.fundingGoal}</span>
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              {[10, 25, 50].map((amt) => (
+                                <button key={amt} onClick={() => handleChipIn(e.id, amt)} className="px-3 py-1 text-sm border border-stone-200 hover:border-leaf hover:text-leaf transition-colors">
+                                  $ {amt}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
-                      <div className="bg-gray-50 px-5 py-3 flex justify-between items-center border-t border-gray-100">
-                        <button onClick={() => setShowDetailModal(event)} className="text-orange-600 font-medium text-sm hover:underline">View Details</button>
-                        <button 
-                          onClick={() => handleGoingToggle(event.id)}
-                          className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-                            event.going ? "bg-green-100 text-green-700" : "bg-orange-500 text-white hover:bg-orange-600"
-                          }`}
-                        >
-                          {event.going ? "✓ Going!" : "I'm Going!"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Marketplace Tab */}
-          {activeTab === "marketplace" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Neighborhood Marketplace</h2>
-                  <p className="text-gray-500 text-sm mt-1">Buy, sell, trade, or give away items with your neighbors</p>
-                </div>
-                <button onClick={() => setShowMarketplaceModal(true)} className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all flex items-center gap-2">
-                  <span>+</span> Post Listing
-                </button>
-              </div>
-
-              {/* Filter Pills */}
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {["All", "For Sale", "Free", "Trade"].map((filter) => (
-                  <button key={filter} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600 transition-all whitespace-nowrap">
-                    {filter === "Free" && "🎁 "}{filter === "Trade" && "🔄 "}{filter}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketplaceListings.map((listing) => {
-                  const conditionBadge = getConditionBadge(listing.condition);
-                  
-                  return (
-                    <div key={listing.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all flex flex-col">
-                      {/* Photo */}
-                      <div className="relative h-48 bg-gray-100">
-                        {listing.photos && listing.photos.length > 0 ? (
-                          <img src={listing.photos[0]} alt={listing.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl text-gray-300">
-                            {getMarketplaceIcon(listing.category)}
-                          </div>
-                        )}
-                        {/* Listing Type Badge */}
-                        <div className="absolute top-3 left-3">
-                          {listing.listingType === "free" && (
-                            <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">FREE</span>
-                          )}
-                          {listing.listingType === "trade" && (
-                            <span className="px-2 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">🔄 TRADE</span>
-                          )}
-                        </div>
-                        {/* Condition Badge */}
-                        <div className="absolute top-3 right-3">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${conditionBadge.class}`}>
-                            {conditionBadge.text}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-bold text-gray-900">{listing.title}</h3>
-                          {listing.listingType === "sell" && (
-                            <span className="text-lg font-bold text-orange-600">${listing.price}</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2 flex-1">{listing.description}</p>
-                        
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                          <span>🏠 House #{listing.houseNumber}</span>
-                          <span>{listing.interested} interested</span>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => setShowListingModal(listing)}
-                            className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                          >
-                            View Details
-                          </button>
-                          <button 
-                            onClick={() => handleInterested(listing.id)}
-                            className="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-                          >
-                            I'm Interested
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Tasks Tab */}
-          {activeTab === "tasks" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Neighbor Task Board</h2>
-                  <p className="text-gray-500 text-sm mt-1">Need a hand? Ask your neighbors!</p>
-                </div>
-                <button onClick={() => setShowTaskModal(true)} className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all flex items-center gap-2">
-                  <span>+</span> Request Help
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {tasks.map((task) => (
-                  <div key={task.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-3xl">{getCategoryIcon(task.category)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-gray-900 text-lg">{task.title}</h3>
-                            <p className="text-xs text-orange-600 font-medium">🏠 House #{task.houseNumber}</p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            task.urgency === "high" ? "bg-red-100 text-red-700" :
-                            task.urgency === "medium" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-green-100 text-green-700"
-                          }`}>
-                            {task.urgency} priority
-                          </span>
-                        </div>
-                        <p className="text-gray-600 mt-2">{task.description}</p>
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-sm text-orange-600 font-medium">{task.offers} neighbor{task.offers !== 1 && "s"} offered to help</span>
-                          <button onClick={() => handleOfferHelp(task.id)} className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors text-sm">
-                            I Can Help!
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Local Helpers Tab */}
-          {activeTab === "helpers" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Local Helpers</h2>
-                  <p className="text-gray-500 text-sm mt-1">Trusted services from your neighbors</p>
-                </div>
-                <button onClick={() => setShowHelperModal(true)} className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all flex items-center gap-2">
-                  <span>+</span> List Your Service
-                </button>
-              </div>
-
-              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">💼</span>
-                  <div>
-                    <p className="font-semibold text-gray-900">Become a Local Helper</p>
-                    <p className="text-sm text-gray-600 mt-1">List your services for just <strong className="text-orange-600">$5/month</strong>. Help neighbors & earn extra income!</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                {localHelpers.map((helper) => (
-                  <div key={helper.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-4xl">{getServiceIcon(helper.title)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-gray-900 text-lg">{helper.title}</h3>
-                            <p className="text-xs text-orange-600 font-medium">🏠 House #{helper.houseNumber}</p>
-                          </div>
-                          <span className="text-lg font-bold text-orange-600">{helper.price}</span>
-                        </div>
-                        <p className="text-gray-600 mt-2 text-sm">{helper.description}</p>
-                        <div className="flex items-center gap-4 mt-3 text-sm">
-                          <span className="flex items-center gap-1 text-amber-600">⭐ {helper.rating}</span>
-                          <span className="text-gray-400">({helper.reviews} reviews)</span>
-                          <span className="text-gray-500">{helper.availability}</span>
-                        </div>
-                        <button 
-                          onClick={() => setShowContactModal(helper)}
-                          className="mt-4 w-full px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors text-sm"
-                        >
-                          Contact #{helper.houseNumber}
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-sm text-stone-400">{e.attendees} going</span>
+                        <button onClick={() => handleGoing(e.id)} className={`text-sm px-3 py-1 border transition-colors ${e.going ? "border-leaf bg-leaf-pale text-leaf" : "border-stone-200 hover:border-leaf"}`}>
+                          {e.going ? "Going" : "I'm going"}
                         </button>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-white border-t border-gray-200 mt-8">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
-            <p className="text-gray-500 text-sm">🏘️ Happy Neighbor encourages real connections — walk over and say hi! 🏘️</p>
-          </div>
-        </div>
-
-        {/* MODALS */}
-
-        {/* New Event Modal */}
-        <Modal isOpen={showEventModal} onClose={() => {
-          setShowEventModal(false);
-          setShowPartnerShops(false);
-          setSelectedShop(null);
-          setNewEvent({ 
-            title: "", date: "", time: "", description: "", type: "party",
-            needsFunding: false, fundingGoal: "", fundingDescription: "",
-            partnerShopItems: []
-          });
-        }} title="Post a New Event">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
-              <input type="text" value={newEvent.title} onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                placeholder="Summer BBQ, Garage Sale, etc." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input type="time" value={newEvent.time} onChange={(e) => setNewEvent({...newEvent, time: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-              <select value={newEvent.type} onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                <option value="party">🎉 Party / Gathering</option>
-                <option value="sale">🏷️ Garage Sale</option>
-                <option value="activity">🎯 Activity / Sports</option>
-                <option value="meeting">📋 Meeting</option>
-                <option value="other">📅 Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea value={newEvent.description} onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
-                rows="3" placeholder="What should neighbors know about this event?"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-
-            {/* Crowdfunding Toggle */}
-            <div className="border-t border-gray-200 pt-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={newEvent.needsFunding} 
-                  onChange={(e) => setNewEvent({...newEvent, needsFunding: e.target.checked})}
-                  className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                />
-                <div>
-                  <span className="font-medium text-gray-900">💰 Enable Crowdfunding</span>
-                  <p className="text-xs text-gray-500">Let neighbors chip in for event supplies, rentals, etc.</p>
-                </div>
-              </label>
-            </div>
-
-            {/* Crowdfunding Fields (shown when enabled) */}
-            {newEvent.needsFunding && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Funding Goal ($)</label>
-                  <input type="number" value={newEvent.fundingGoal} onChange={(e) => setNewEvent({...newEvent, fundingGoal: e.target.value})}
-                    placeholder="200" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">What's the funding for?</label>
-                  <input type="text" value={newEvent.fundingDescription} onChange={(e) => setNewEvent({...newEvent, fundingDescription: e.target.value})}
-                    placeholder="Bounce house rental, food & drinks, decorations..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-                </div>
               </div>
             )}
-
-            {/* Partner Shops Section */}
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <span className="font-medium text-gray-900">🍕 Order from Partner Shops</span>
-                  <p className="text-xs text-gray-500">One-click food & drinks for your event</p>
-                </div>
-                <button
-                  onClick={() => setShowPartnerShops(!showPartnerShops)}
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  {showPartnerShops ? "Hide Shops" : "Browse Shops"}
-                </button>
+            {activeTab === "tasks" && (
+              <div className="space-y-4 px-1">
+                <p className="text-sm text-stone-500 mb-4">Ask for help or lend a hand</p>
+                {tasks.map((t) => (
+                  <div key={t.id} className="border border-stone-100 bg-warm-50/50 p-5 hover:border-stone-200 transition-colors">
+                    <span className="inline-block px-2 py-0.5 text-xs font-medium bg-citrus-muted text-citrus rounded-sm mb-2">{t.category}</span>
+                    <h3 className="font-medium text-stone-900">{t.title}</h3>
+                    <p className="text-sm text-stone-500 mt-1">#{t.host}</p>
+                    <p className="text-stone-600 mt-2 text-sm">{t.description}</p>
+                    <button className="mt-3 text-sm font-medium text-leaf hover:text-leaf-dark transition-colors">Offer help →</button>
+                  </div>
+                ))}
               </div>
+            )}
+            {activeTab === "helpers" && (
+              <div className="space-y-4 px-1">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-sm text-stone-500">Services you can hire from neighbors</p>
+                  <Link to="/helpers-signup" className="text-sm font-medium text-leaf hover:text-leaf-dark">
+                    + List your service
+                  </Link>
+                </div>
+                <div className="mb-4 p-4 bg-leaf-pale/50 border border-leaf/20 rounded text-sm text-stone-700">
+                  List your service to your neighborhood for <strong>$10/month</strong>. Reach neighbors looking for lawn care, snow removal, tech help, and more. <Link to="/helpers-signup" className="text-leaf font-medium hover:underline">Get started →</Link>
+                </div>
+                {helpers.map((h) => (
+                  <div key={h.id} className="border border-stone-100 bg-warm-50/50 p-5 hover:border-stone-200 transition-colors">
+                    <h3 className="font-medium text-stone-900">{h.title}</h3>
+                    <p className="text-sm text-leaf font-medium mt-0.5">{h.price}</p>
+                    <p className="text-stone-600 mt-2 text-sm">{h.description}</p>
+                    <span className="text-xs text-stone-400 block mt-2">{h.availability}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {activeTab === "marketplace" && (
+              <div className="space-y-4 px-1">
+                <p className="text-sm text-stone-500 mb-4">Buy, sell, or give stuff to neighbors</p>
+                {listings.map((l) => (
+                  <div key={l.id} className="border border-stone-100 bg-warm-50/50 hover:border-stone-200 transition-colors flex gap-4 overflow-hidden rounded">
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0 bg-stone-100 overflow-hidden">
+                      {l.image ? (
+                        <img src={l.image} alt={l.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl text-stone-300">
+                          {l.category === "furniture" ? "🪑" : l.category === "sports" ? "🚲" : "📦"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 py-5 pr-5">
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-stone-100 text-stone-600 rounded-sm mb-2">{l.category}</span>
+                      <h3 className="font-medium text-stone-900">{l.title}</h3>
+                      <p className="text-stone-600 mt-2 text-sm line-clamp-2">{l.description}</p>
+                    </div>
+                    <div className="flex flex-col justify-center font-semibold text-stone-900">{l.price === 0 ? <span className="text-leaf">Free</span> : `$${l.price}`}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-              {showPartnerShops && (
+        {/* Post Event Modal */}
+        {showEventModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowEventModal(false)}>
+            <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded shadow-lg" onClick={e => e.stopPropagation()}>
+              <div className="p-6">
+                <h3 className="font-serif text-xl font-semibold text-stone-900 mb-4">Post an event</h3>
                 <div className="space-y-4">
-                  {/* Shop Selection */}
-                  {!selectedShop ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {partnerShops.map((shop) => (
-                        <button
-                          key={shop.id}
-                          onClick={() => setSelectedShop(shop)}
-                          className="p-3 border-2 border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-left"
-                        >
-                          <div className="text-2xl mb-1">{shop.icon}</div>
-                          <div className="font-semibold text-sm text-gray-900">{shop.name}</div>
-                          <div className="text-xs text-gray-500">{shop.description}</div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Title</label>
+                    <input value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="e.g. Block Party" className="w-full px-3 py-2 border border-stone-300" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Date</label>
+                      <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="w-full px-3 py-2 border border-stone-300" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Time</label>
+                      <input type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} className="w-full px-3 py-2 border border-stone-300" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
+                    <textarea value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} rows={3} placeholder="What's happening?" className="w-full px-3 py-2 border border-stone-300" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
+                    <select value={newEvent.type} onChange={e => setNewEvent({ ...newEvent, type: e.target.value })} className="w-full px-3 py-2 border border-stone-300">
+                      <option value="party">Party</option>
+                      <option value="sale">Garage sale</option>
+                      <option value="activity">Activity</option>
+                      <option value="meeting">Meeting</option>
+                    </select>
+                  </div>
+
+                  {/* Fundraising */}
+                  <div className="border-t border-stone-200 pt-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={newEvent.needsFunding} onChange={e => setNewEvent({ ...newEvent, needsFunding: e.target.checked })} />
+                      <span className="text-sm font-medium text-stone-700">Enable fundraising (let neighbors chip in)</span>
+                    </label>
+                    {newEvent.needsFunding && (
+                      <div className="mt-3 space-y-2">
+                        <input type="number" placeholder="Funding goal ($)" value={newEvent.fundingGoal} onChange={e => setNewEvent({ ...newEvent, fundingGoal: e.target.value })} className="w-full px-3 py-2 border border-stone-300" />
+                        <input type="text" placeholder="What's it for? (e.g. bounce house, food)" value={newEvent.fundingDescription} onChange={e => setNewEvent({ ...newEvent, fundingDescription: e.target.value })} className="w-full px-3 py-2 border border-stone-300" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add food from local shops */}
+                  <div className="border-t border-stone-200 pt-4">
+                    <p className="text-sm font-medium text-stone-700 mb-2">Add food for your event</p>
+                    <button onClick={() => setShowFoodPicker(true)} className="text-sm text-leaf hover:text-leaf-dark font-medium">
+                      + Add from local shop (pizza, subs, etc.)
+                    </button>
+                    {newEvent.partnerShopItems.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {newEvent.partnerShopItems.map((item, idx) => (
+                          <li key={idx} className="flex justify-between items-center text-sm">
+                            <span>{item.shopIcon} {item.itemName} × {item.quantity} — ${(item.price * (1 - (item.discount || 0) / 100) * item.quantity).toFixed(2)}</span>
+                            <button onClick={() => removeFoodItem(idx)} className="text-red-600 hover:underline">Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowEventModal(false)} className="px-4 py-2 border border-stone-300 text-stone-700">Cancel</button>
+                  <button onClick={handlePostEvent} className="flex-1 py-2 bg-leaf text-white font-medium hover:bg-leaf-dark">Post event</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Food picker */}
+        {showFoodPicker && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={() => setShowFoodPicker(false)}>
+            <div className="bg-white w-full max-w-md max-h-[80vh] overflow-y-auto rounded shadow-lg" onClick={e => e.stopPropagation()}>
+              <div className="p-6">
+                <h3 className="font-semibold text-stone-900 mb-2">Add food from local businesses</h3>
+                <p className="text-sm text-stone-500 mb-4">One-click add catering for your event. <Link to="/businesses" className="text-leaf hover:underline">List your business</Link></p>
+                {PARTNER_SHOPS.map((shop) => (
+                  <div key={shop.id} className="border border-stone-200 rounded p-3 mb-3">
+                    <p className="font-medium text-stone-900 mb-2">{shop.icon} {shop.name}</p>
+                    <div className="space-y-1">
+                      {shop.items.map((item) => (
+                        <button key={item.id} onClick={() => addFoodItem(shop, item)} className="w-full text-left text-sm px-2 py-1.5 hover:bg-leaf-pale/60 rounded flex justify-between">
+                          <span>{item.name} — serves {item.serves}</span>
+                          <span className="text-leaf">${item.discount ? (item.price * (1 - item.discount / 100)).toFixed(2) : item.price}</span>
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <div>
-                      {/* Back button */}
-                      <button
-                        onClick={() => setSelectedShop(null)}
-                        className="mb-3 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
-                      >
-                        ← Back to shops
-                      </button>
+                  </div>
+                ))}
+                <button onClick={() => setShowFoodPicker(false)} className="w-full py-2 border border-stone-300 text-stone-600">Done</button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                      {/* Shop items */}
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-2xl">{selectedShop.icon}</span>
+        {/* Neighborhood / Invite streets modal */}
+        {showNeighborhoodModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowNeighborhoodModal(false)}>
+            <div className="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded shadow-lg" onClick={e => e.stopPropagation()}>
+              <div className="p-6">
+                <h3 className="font-serif text-xl font-semibold text-stone-900 mb-2">Invite streets</h3>
+                <p className="text-sm text-stone-500 mb-4">Connect with nearby streets. Requires 5+ approvals from each street to link.</p>
+
+                {incomingInvites.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-stone-700 mb-3">Incoming invites</h4>
+                    <div className="space-y-2">
+                      {incomingInvites.map((inv) => (
+                        <div key={inv.id} className="border border-stone-200 bg-leaf-pale/30 p-3 rounded flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <div className="font-semibold text-gray-900">{selectedShop.name}</div>
-                            <div className="text-xs text-gray-500">{selectedShop.description}</div>
+                            <p className="font-medium text-stone-900 text-sm">{inv.fromStreet}</p>
+                            <p className="text-xs text-stone-500">{inv.ourApprovals || 0}/5 us · {inv.theirApprovals || 0}/5 them</p>
                           </div>
+                          <button onClick={() => handleApproveIncoming(inv.id)} className="px-3 py-1 text-sm font-medium border border-leaf text-leaf hover:bg-leaf hover:text-white transition-colors rounded">Approve</button>
                         </div>
-                      </div>
-
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {selectedShop.items.map((item) => {
-                          const hasDiscount = item.discount && item.discount > 0;
-                          const discountedPrice = hasDiscount ? getDiscountedPrice(item.price, item.discount) : item.price;
-                          
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                                hasDiscount ? "border-orange-300 bg-orange-50 hover:bg-orange-100" : "border-gray-200 hover:bg-orange-50"
-                              }`}
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <div className="font-medium text-sm text-gray-900">{item.name}</div>
-                                  {hasDiscount && (
-                                    <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
-                                      {item.discount}% OFF
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-xs text-gray-500">{item.serves}</div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                  {hasDiscount ? (
-                                    <>
-                                      <div className="text-xs text-gray-400 line-through">${item.price.toFixed(2)}</div>
-                                      <div className="font-semibold text-orange-600">${discountedPrice.toFixed(2)}</div>
-                                    </>
-                                  ) : (
-                                    <div className="font-semibold text-gray-900">${item.price.toFixed(2)}</div>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => handleAddShopItem(selectedShop.id, item)}
-                                  className="px-3 py-1 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Selected Items Cart */}
-                  {newEvent.partnerShopItems.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                      <div className="font-semibold text-gray-900 mb-2">Selected Items</div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {newEvent.partnerShopItems.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between bg-white p-2 rounded border border-blue-100">
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">
-                                {item.shopIcon} {item.itemName}
-                              </div>
-                              <div className="text-xs text-gray-500">{item.shopName}</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
-                                  className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded text-gray-600 hover:bg-gray-100"
-                                >
-                                  -
-                                </button>
-                                <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
-                                <button
-                                  onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
-                                  className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded text-gray-600 hover:bg-gray-100"
-                                >
-                                  +
-                                </button>
-                              </div>
-                              <div className="text-sm font-semibold text-gray-900 w-20 text-right">
-                                {item.discount && item.discount > 0 ? (
-                                  <>
-                                    <div className="text-xs text-gray-400 line-through">${(item.price * item.quantity).toFixed(2)}</div>
-                                    <div className="text-orange-600">${(getDiscountedPrice(item.price, item.discount) * item.quantity).toFixed(2)}</div>
-                                  </>
-                                ) : (
-                                  <div>${(item.price * item.quantity).toFixed(2)}</div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleRemoveShopItem(index)}
-                                className="text-red-500 hover:text-red-700 text-sm ml-2"
-                              >
-                                ✕
-                              </button>
-                            </div>
+                {outgoingInvites.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-stone-700 mb-3">Your invites (pending)</h4>
+                    <div className="space-y-2">
+                      {outgoingInvites.map((inv) => (
+                        <div key={inv.id} className="border border-stone-200 bg-warm-50/80 p-3 rounded flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-stone-900 text-sm">{inv.name}</p>
+                            <p className="text-xs text-stone-500">{inv.ourApprovals || 0}/5 us · {inv.theirApprovals || 0}/5 them</p>
+                          </div>
+                          <button onClick={() => handleApproveOutgoing(inv.id)} className="px-3 py-1 text-sm font-medium border border-stone-300 text-stone-700 hover:bg-stone-100 rounded">Approve</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="text-sm font-medium text-stone-700 mb-3">Invite a nearby street</h4>
+                  {nearbyLoading ? (
+                    <p className="text-sm text-stone-500 py-4">Finding nearby streets…</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(nearbyStreets.length ? nearbyStreets : FALLBACK_NEARBY_STREETS)
+                        .filter(s => !outgoingInvites.some(o => o.id === s.id || (o.name === s.name && o.city === s.city)))
+                        .map((s) => (
+                          <div key={s.id} className="border border-stone-200 p-3 rounded flex items-center justify-between">
+                            <span className="text-sm text-stone-800">{s.name}, {s.city}{s.state ? `, ${s.state}` : ""}</span>
+                            <button onClick={() => handleInviteStreet(s)} className="px-3 py-1 text-sm font-medium text-leaf border border-leaf hover:bg-leaf hover:text-white transition-colors rounded">Invite</button>
                           </div>
                         ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
-                        <span className="font-semibold text-gray-900">Total:</span>
-                        <span className="text-lg font-bold text-orange-600">${getTotalShopCost().toFixed(2)}</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        💳 Payment will be processed when you confirm the order
-                      </p>
+                      {(nearbyStreets.length ? nearbyStreets : FALLBACK_NEARBY_STREETS).filter(s => !outgoingInvites.some(o => o.id === s.id || (o.name === s.name && o.city === s.city))).length === 0 && (
+                        <p className="text-sm text-stone-500">No more nearby streets to invite.</p>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <button onClick={handleCreateEvent} className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-              {newEvent.needsFunding ? "Post Event with Fundraising" : "Post Event"}
-            </button>
-          </div>
-        </Modal>
-
-        {/* New Task Modal */}
-        <Modal isOpen={showTaskModal} onClose={() => setShowTaskModal(false)} title="Request Help">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">What do you need help with?</label>
-              <input type="text" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                placeholder="Quick lawn mow, tech help, pet sitting..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={newTask.category} onChange={(e) => setNewTask({...newTask, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                  <option value="tech">💻 Tech Help</option>
-                  <option value="yard">🌿 Yard Work</option>
-                  <option value="pets">🐾 Pet Care</option>
-                  <option value="moving">📦 Moving Help</option>
-                  <option value="errands">🏃 Errands</option>
-                  <option value="other">✨ Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                <select value={newTask.urgency} onChange={(e) => setNewTask({...newTask, urgency: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                  <option value="low">Low - Whenever</option>
-                  <option value="medium">Medium - This Week</option>
-                  <option value="high">High - ASAP</option>
-                </select>
+                <button onClick={() => setShowNeighborhoodModal(false)} className="w-full mt-6 py-2 border border-stone-300 text-stone-700">Close</button>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Details</label>
-              <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                rows="3" placeholder="Describe what you need, when, and any other details..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-            <button onClick={handleCreateTask} className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-              Post Request
-            </button>
           </div>
-        </Modal>
+        )}
 
-        {/* New Marketplace Listing Modal */}
-        <Modal isOpen={showMarketplaceModal} onClose={() => setShowMarketplaceModal(false)} title="Post a Listing">
-          <div className="space-y-4">
-            {/* Listing Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">What are you doing?</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: "sell", label: "Selling", icon: "💵" },
-                  { value: "free", label: "Giving Away", icon: "🎁" },
-                  { value: "trade", label: "Trading", icon: "🔄" }
-                ].map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setNewListing({...newListing, listingType: type.value})}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border-2 ${
-                      newListing.listingType === type.value 
-                        ? "border-orange-500 bg-orange-50 text-orange-700" 
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    <span className="mr-1">{type.icon}</span> {type.label}
-                  </button>
+        {/* Join survey modal */}
+        {showJoinSurvey && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded shadow-lg p-6">
+              <h3 className="font-serif text-xl font-semibold text-stone-900 mb-2">Quick neighborhood survey</h3>
+              <p className="text-sm text-stone-500 mb-6">Help us learn about your area. 0 = Not at all / Not important, 4 = Very much so / Very important.</p>
+              <div className="space-y-5">
+                {JOIN_SURVEY_QUESTIONS.map((q) => (
+                  <div key={q.id}>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">{q.label}</label>
+                    <p className="text-xs text-stone-500 mb-2">{q.scale}</p>
+                    <div className="flex gap-2">
+                      {[0, 1, 2, 3, 4].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setJoinSurveyAnswers(prev => ({ ...prev, [q.id]: n }))}
+                          className={`w-10 h-10 text-sm font-medium border rounded transition-colors ${
+                            joinSurveyAnswers[q.id] === n
+                              ? "border-leaf bg-leaf text-white"
+                              : "border-stone-300 text-stone-600 hover:border-stone-400"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Item Title</label>
-              <input type="text" value={newListing.title} onChange={(e) => setNewListing({...newListing, title: e.target.value})}
-                placeholder="What are you selling/giving away?" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-
-            {/* Price - only show for selling */}
-            {newListing.listingType === "sell" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
-                <input type="number" value={newListing.price} onChange={(e) => setNewListing({...newListing, price: e.target.value})}
-                  placeholder="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-              </div>
-            )}
-
-            {/* Trade description */}
-            {newListing.listingType === "trade" && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
-                🔄 Describe what you're looking for in trade in the description below
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={newListing.category} onChange={(e) => setNewListing({...newListing, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                  <option value="furniture">🪑 Furniture</option>
-                  <option value="electronics">📱 Electronics</option>
-                  <option value="sports">⚽ Sports & Outdoors</option>
-                  <option value="outdoor">🌿 Garden & Outdoor</option>
-                  <option value="baby">👶 Baby & Kids</option>
-                  <option value="clothing">👕 Clothing</option>
-                  <option value="books">📚 Books & Media</option>
-                  <option value="other">📦 Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                <select value={newListing.condition} onChange={(e) => setNewListing({...newListing, condition: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                  <option value="new">New (unopened)</option>
-                  <option value="excellent">Like New</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="used">Used</option>
-                </select>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => { localStorage.setItem(`communitySurveyDone_${isDemo ? "demo" : streetId}`, "1"); setShowJoinSurvey(false); setJoinSurveyAnswers({}); }}
+                  className="px-4 py-2 text-stone-500 hover:text-stone-700 text-sm"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleJoinSurveySubmit}
+                  className="flex-1 py-2 bg-leaf text-stone-900 font-medium hover:bg-leaf-dark"
+                >
+                  Submit
+                </button>
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea value={newListing.description} onChange={(e) => setNewListing({...newListing, description: e.target.value})}
-                rows="3" placeholder="Describe the item, dimensions, any flaws, pickup details..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-
-            {/* Photo Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Photo (optional)</label>
-              <div className="flex items-center gap-4">
-                {newListing.photoPreview ? (
-                  <div className="relative">
-                    <img src={newListing.photoPreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-gray-200" />
-                    <button 
-                      type="button"
-                      onClick={() => setNewListing({...newListing, photoPreview: null})}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-sm hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
-                    <span className="text-2xl text-gray-400">📷</span>
-                    <span className="text-xs text-gray-500 mt-1">Add Photo</span>
-                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                  </label>
-                )}
-                <p className="text-xs text-gray-500 flex-1">Add a photo to help neighbors see what you're offering</p>
-              </div>
-            </div>
-
-            <button onClick={handleCreateListing} className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-              {newListing.listingType === "sell" ? `Post for $${newListing.price || '0'}` : 
-               newListing.listingType === "free" ? "Post Free Item" : "Post Trade Listing"}
-            </button>
           </div>
-        </Modal>
+        )}
 
-        {/* Listing Detail Modal */}
-        <Modal isOpen={!!showListingModal} onClose={() => setShowListingModal(null)} title={showListingModal?.title || "Listing Details"}>
-          {showListingModal && (
-            <div className="space-y-4">
-              {/* Photo */}
-              {showListingModal.photos && showListingModal.photos.length > 0 ? (
-                <img src={showListingModal.photos[0]} alt={showListingModal.title} className="w-full h-48 object-cover rounded-lg" />
-              ) : (
-                <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center text-6xl text-gray-300">
-                  {getMarketplaceIcon(showListingModal.category)}
-                </div>
-              )}
-
-              {/* Price & Type */}
-              <div className="flex items-center justify-between">
-                {showListingModal.listingType === "sell" && (
-                  <span className="text-3xl font-bold text-orange-600">${showListingModal.price}</span>
-                )}
-                {showListingModal.listingType === "free" && (
-                  <span className="text-2xl font-bold text-green-600">🎁 FREE</span>
-                )}
-                {showListingModal.listingType === "trade" && (
-                  <span className="text-2xl font-bold text-purple-600">🔄 Trade</span>
-                )}
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getConditionBadge(showListingModal.condition).class}`}>
-                  {getConditionBadge(showListingModal.condition).text}
-                </span>
-              </div>
-
-              {/* Description */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-700">{showListingModal.description}</p>
-              </div>
-
-              {/* Posted Info */}
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>🏠 House #{showListingModal.houseNumber}</span>
-                <span>Posted {showListingModal.postedDate}</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="font-semibold text-orange-600">{showListingModal.interested}</span> neighbors interested
-              </div>
-
-              {/* Action */}
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-orange-800 font-medium">🏠 Walk over to House #{showListingModal.houseNumber}</p>
-                <p className="text-sm text-orange-700 mt-2">Knock on their door or leave a note to discuss the item!</p>
-              </div>
-
-              <button 
-                onClick={() => { handleInterested(showListingModal.id); setShowListingModal(null); }}
-                className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors"
-              >
-                I'm Interested!
-              </button>
-            </div>
-          )}
-        </Modal>
-
-        {/* New Helper Service Modal */}
-        <Modal isOpen={showHelperModal} onClose={() => setShowHelperModal(false)} title="List Your Service">
-          <div className="space-y-4">
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
-              💼 Listing fee: <strong>$5/month</strong> — helps keep our community spam-free!
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Service Name</label>
-              <input type="text" value={newHelper.title} onChange={(e) => setNewHelper({...newHelper, title: e.target.value})}
-                placeholder="Snow Removal, Lawn Mowing, Dog Walking..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                <input type="text" value={newHelper.price} onChange={(e) => setNewHelper({...newHelper, price: e.target.value})}
-                  placeholder="$20/driveway, $15/hour..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
-                <input type="text" value={newHelper.availability} onChange={(e) => setNewHelper({...newHelper, availability: e.target.value})}
-                  placeholder="Weekends, Year-round..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea value={newHelper.description} onChange={(e) => setNewHelper({...newHelper, description: e.target.value})}
-                rows="3" placeholder="Describe your service, what's included, your experience..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
-            </div>
-            <button onClick={handleCreateHelper} className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-              List Service ($5/month)
-            </button>
-          </div>
-        </Modal>
-
-        {/* Event Detail Modal */}
-        <Modal isOpen={!!showDetailModal} onClose={() => setShowDetailModal(null)} title={showDetailModal?.title || "Event Details"}>
-          {showDetailModal && (
-            <div className="space-y-4">
-              <div className="text-4xl text-center">{getEventIcon(showDetailModal.type)}</div>
-              <div className="text-center">
-                <p className="text-lg text-gray-600">📅 {showDetailModal.date} at {showDetailModal.time}</p>
-                <p className="text-sm text-orange-600 font-medium mt-1">🏠 Hosted by #{showDetailModal.houseNumber}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-700">{showDetailModal.description}</p>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                <span className="font-semibold text-orange-600">{showDetailModal.attendees}</span> neighbors are going
-              </div>
-
-              {/* Partner Shop Items Section */}
-              {showDetailModal.partnerShopItems && showDetailModal.partnerShopItems.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">🍕</span>
-                    <span className="font-semibold text-gray-900">Ordered from Partner Shops</span>
-                  </div>
-                  <div className="space-y-2">
-                    {showDetailModal.partnerShopItems.map((item, index) => (
-                      <div key={index} className="bg-white p-2 rounded border border-blue-100">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.shopIcon} {item.itemName} × {item.quantity}
-                            </div>
-                            <div className="text-xs text-gray-500">{item.shopName}</div>
-                          </div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {item.discount && item.discount > 0 ? (
-                              <>
-                                <div className="text-xs text-gray-400 line-through">${(item.price * item.quantity).toFixed(2)}</div>
-                                <div className="text-orange-600">${(getDiscountedPrice(item.price, item.discount) * item.quantity).toFixed(2)}</div>
-                              </>
-                            ) : (
-                              <div>${(item.price * item.quantity).toFixed(2)}</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
-                    <span className="font-semibold text-gray-900">Total:</span>
-                    <span className="text-lg font-bold text-orange-600">
-                      ${showDetailModal.partnerShopItems.reduce((total, item) => {
-                        const discountedPrice = item.discount ? item.price * (1 - item.discount / 100) : item.price;
-                        return total + (discountedPrice * item.quantity);
-                      }, 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    💳 Order will be delivered to the event location
-                  </p>
-                </div>
-              )}
-
-              {/* Crowdfunding Section in Detail Modal */}
-              {showDetailModal.needsFunding && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">💰</span>
-                    <span className="font-semibold text-gray-900">Event Fundraising</span>
-                    {showDetailModal.fundingRaised >= showDetailModal.fundingGoal && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">✓ Funded!</span>
-                    )}
-                  </div>
-                  {showDetailModal.fundingDescription && (
-                    <p className="text-sm text-gray-600 mb-3">{showDetailModal.fundingDescription}</p>
-                  )}
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="font-semibold text-gray-900">${showDetailModal.fundingRaised || 0} raised</span>
-                    <span className="text-gray-500">of ${showDetailModal.fundingGoal} goal</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div 
-                      className={`h-2.5 rounded-full transition-all ${showDetailModal.fundingRaised >= showDetailModal.fundingGoal ? "bg-green-500" : "bg-orange-500"}`}
-                      style={{ width: `${Math.min((showDetailModal.fundingRaised / showDetailModal.fundingGoal) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mb-3">{showDetailModal.fundingBackers || 0} neighbors have chipped in</p>
-                  
-                  {showDetailModal.fundingRaised < showDetailModal.fundingGoal && (
-                    <div className="flex gap-2">
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 5); }} className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">$5</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 10); }} className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">$10</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 25); }} className="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors">$25</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 50); }} className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">$50</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button 
-                onClick={() => { handleGoingToggle(showDetailModal.id); setShowDetailModal(null); }}
-                className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
-                  showDetailModal.going ? "bg-green-100 text-green-700" : "bg-orange-500 text-white hover:bg-orange-600"
-                }`}
-              >
-                {showDetailModal.going ? "✓ You're Going!" : "I'm Going!"}
-              </button>
-            </div>
-          )}
-        </Modal>
-
-        {/* Contact Helper Modal */}
-        <Modal isOpen={!!showContactModal} onClose={() => setShowContactModal(null)} title={`Contact #${showContactModal?.houseNumber}`}>
-          {showContactModal && (
-            <div className="space-y-4 text-center">
-              <div className="text-6xl">{getServiceIcon(showContactModal.title)}</div>
-              <h3 className="text-xl font-bold text-gray-900">{showContactModal.title}</h3>
-              <p className="text-2xl font-bold text-orange-600">{showContactModal.price}</p>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-orange-800 font-medium">🏠 Walk over to House #{showContactModal.houseNumber}</p>
-                <p className="text-sm text-orange-700 mt-2">Ring the doorbell or leave a note to arrange the service!</p>
-              </div>
-              <p className="text-gray-600 text-sm">
-                Happy Neighbor encourages in-person connections. Walking over is the best way to meet your neighbors and arrange services!
-              </p>
-              <button onClick={() => setShowContactModal(null)} className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-                Got It!
-              </button>
-            </div>
-          )}
-        </Modal>
-
-        {/* Invite Street to Neighborhood Hub Modal */}
-        <Modal isOpen={showInviteModal} onClose={() => {
-          setShowInviteModal(false);
-          setInviteSearch("");
-          setSearchResults([]);
-          setSelectedStreetForInvite(null);
-          setInviteMessage("");
-        }} title="Invite Street to Neighborhood Hub">
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>🏘️ Build a Neighborhood Hub</strong><br/>
-                Invite nearby streets to create a larger community network. Collaborate on events, share resources, and build stronger neighborhood connections.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search for a Street</label>
-              <input
-                type="text"
-                value={inviteSearch}
-                onChange={(e) => {
-                  setInviteSearch(e.target.value);
-                  // Debounce search
-                  if (searchTimeoutRef.current) {
-                    clearTimeout(searchTimeoutRef.current);
-                  }
-                  searchTimeoutRef.current = setTimeout(() => {
-                    handleSearchStreets(e.target.value);
-                  }, 300);
-                }}
-                placeholder="Type street name..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              />
-              {searchResults.length > 0 && (
-                <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                  {searchResults.map((street) => (
-                    <button
-                      key={street.id}
-                      onClick={() => {
-                        setSelectedStreetForInvite(street);
-                        setInviteSearch(street.name);
-                        setSearchResults([]);
-                      }}
-                      className="w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-medium text-gray-900">{street.name}</div>
-                      <div className="text-sm text-gray-500">{street.city}, {street.state}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {selectedStreetForInvite && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900">✓ {selectedStreetForInvite.name}</div>
-                      <div className="text-sm text-gray-500">{selectedStreetForInvite.city}, {selectedStreetForInvite.state}</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedStreetForInvite(null);
-                        setInviteSearch("");
-                      }}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Message (Optional)</label>
-              <textarea
-                value={inviteMessage}
-                onChange={(e) => setInviteMessage(e.target.value)}
-                placeholder="Add a personal message to your invitation..."
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              />
-            </div>
-
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <p className="text-xs text-gray-600">
-                <strong>📋 Approval Process:</strong><br/>
-                After creating this invite, your street residents will need to approve it ({selectedStreetForInvite ? "5" : "..."} approvals needed). 
-                Once approved, the invite will be sent to {selectedStreetForInvite?.name || "the selected street"}, 
-                and their residents will also need to approve before the neighborhood hub is created.
-              </p>
-            </div>
-
-            <button
-              onClick={handleCreateInvite}
-              disabled={!selectedStreetForInvite}
-              className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Create Invite
-            </button>
-          </div>
-        </Modal>
-
-        {/* Invite Approval/Management Modal */}
-        <Modal isOpen={showInviteApprovalModal} onClose={() => setShowInviteApprovalModal(false)} title="Manage Neighborhood Hub Invites">
-          <div className="space-y-6">
-            {/* Outgoing Invites */}
-            {neighborhoodInvites.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <span>📤</span>
-                  Invites We Sent
-                </h3>
-                <div className="space-y-3">
-                  {neighborhoodInvites.map((invite) => (
-                    <div key={invite.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-medium text-gray-900">{invite.invitedStreetName}</div>
-                          <div className="text-sm text-gray-500">{invite.invitedStreetCity}, {invite.invitedStreetState}</div>
-                          {invite.message && (
-                            <div className="text-sm text-gray-600 mt-2 italic">"{invite.message}"</div>
-                          )}
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          invite.status === "sent" ? "bg-blue-100 text-blue-700" :
-                          invite.status === "accepted" ? "bg-green-100 text-green-700" :
-                          invite.status === "rejected" ? "bg-red-100 text-red-700" :
-                          "bg-orange-100 text-orange-700"
-                        }`}>
-                          {invite.status === "sent" ? "✅ Sent" :
-                           invite.status === "accepted" ? "✅ Accepted" :
-                           invite.status === "rejected" ? "❌ Rejected" :
-                           "⏳ Pending Approval"}
-                        </span>
-                      </div>
-                      {invite.status === "pending_approval" && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">
-                              Approvals: <strong>{invite.approvals}</strong> / {invite.approvalsNeeded} needed
-                            </span>
-                            <button
-                              onClick={() => handleApproveOutgoingInvite(invite.id)}
-                              className="px-3 py-1 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors"
-                            >
-                              ✓ Approve
-                            </button>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-orange-500 h-2 rounded-full transition-all"
-                              style={{ width: `${(invite.approvals / invite.approvalsNeeded) * 100}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">Created by {invite.createdBy} on {invite.createdAt}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Incoming Invites */}
-            {incomingInvites.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <span>📥</span>
-                  Invites We Received
-                </h3>
-                <div className="space-y-3">
-                  {incomingInvites.map((invite) => (
-                    <div key={invite.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-medium text-gray-900">{invite.fromStreetName}</div>
-                          <div className="text-sm text-gray-500">{invite.fromStreetCity}, {invite.fromStreetState}</div>
-                          {invite.message && (
-                            <div className="text-sm text-gray-600 mt-2 italic">"{invite.message}"</div>
-                          )}
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          invite.status === "accepted" ? "bg-green-100 text-green-700" :
-                          invite.status === "rejected" ? "bg-red-100 text-red-700" :
-                          "bg-orange-100 text-orange-700"
-                        }`}>
-                          {invite.status === "accepted" ? "✅ Accepted" :
-                           invite.status === "rejected" ? "❌ Rejected" :
-                           "⏳ Pending Approval"}
-                        </span>
-                      </div>
-                      {invite.status === "pending_approval" && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">
-                              Approvals: <strong>{invite.approvals}</strong> / {invite.approvalsNeeded} needed
-                            </span>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleApproveIncomingInvite(invite.id)}
-                                className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
-                              >
-                                ✓ Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectIncomingInvite(invite.id)}
-                                className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
-                              >
-                                ✕ Reject
-                              </button>
-                            </div>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{ width: `${(invite.approvals / invite.approvalsNeeded) * 100}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">From {invite.createdBy} on {invite.createdAt}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {neighborhoodInvites.length === 0 && incomingInvites.length === 0 && (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-3">🏘️</div>
-                <p className="text-gray-600">No invites yet. Invite a local street to get started!</p>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setShowInviteApprovalModal(false);
-                setShowInviteModal(true);
-              }}
-              className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors"
-            >
-              + Invite Another Street
-            </button>
-          </div>
-        </Modal>
+        <Footer />
       </div>
     </>
   );

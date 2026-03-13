@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 
-const AddressAutocomplete = ({ 
-  value, 
-  onChange, 
-  onSelect, 
+const AddressAutocomplete = ({
+  value,
+  onChange,
+  onSelect,
   placeholder = "123 Main Street, City, State",
   className = "",
-  disabled = false
+  disabled = false,
 }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -16,157 +16,102 @@ const AddressAutocomplete = ({
   const suggestionsRef = useRef(null);
   const debounceTimer = useRef(null);
 
-  // Debounced search function
   const searchAddresses = async (query) => {
     if (!query || query.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-
     setLoading(true);
     try {
-      // Use Nominatim API (free, no API key required)
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?` +
-        `format=json&` +
-        `q=${encodeURIComponent(query)}&` +
-        `addressdetails=1&` +
-        `limit=5&` +
-        `countrycodes=us&` +
-        `extratags=1`,
-        {
-          headers: {
-            'User-Agent': 'HappyNeighbor/1.0' // Required by Nominatim
-          }
-        }
+          `format=json&q=${encodeURIComponent(query)}&` +
+          `addressdetails=1&limit=5&countrycodes=us&extratags=1`,
+        { headers: { "User-Agent": "HappyNeighbor/1.0" } }
       );
-
       if (response.ok) {
         const data = await response.json();
-        const formattedSuggestions = data.map((item) => {
+        const formatted = data.map((item) => {
           const address = item.address || {};
-          let formattedAddress = '';
-          
-          // Build a formatted address string
+          let formattedAddress = "";
           if (address.house_number && address.road) {
             formattedAddress = `${address.house_number} ${address.road}`;
-            if (address.city || address.town || address.village) {
+            if (address.city || address.town || address.village)
               formattedAddress += `, ${address.city || address.town || address.village}`;
-            }
-            if (address.state) {
-              formattedAddress += `, ${address.state}`;
-            }
+            if (address.state) formattedAddress += `, ${address.state}`;
           } else {
-            // Fallback to display_name if structured address isn't available
-            formattedAddress = item.display_name.split(',').slice(0, 3).join(',').trim();
+            formattedAddress = item.display_name.split(",").slice(0, 3).join(",").trim();
           }
-
           return {
             display: formattedAddress || item.display_name,
             full: item.display_name,
             lat: parseFloat(item.lat),
             lon: parseFloat(item.lon),
-            address: address
+            address,
           };
         });
-
-        setSuggestions(formattedSuggestions);
-        setShowSuggestions(formattedSuggestions.length > 0);
+        setSuggestions(formatted);
+        setShowSuggestions(formatted.length > 0);
         setSelectedIndex(-1);
       }
-    } catch (error) {
-      console.error('Address search error:', error);
+    } catch (err) {
+      console.error("Address search error:", err);
       setSuggestions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle input change
   const handleInputChange = (e) => {
-    const newValue = e.target.value;
-    onChange(newValue);
-
-    // Clear previous debounce timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-
-    // Debounce the search
-    debounceTimer.current = setTimeout(() => {
-      searchAddresses(newValue);
-    }, 300);
+    onChange(e.target.value);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => searchAddresses(e.target.value), 300);
   };
 
-  // Handle suggestion selection
   const handleSelectSuggestion = (suggestion) => {
     onChange(suggestion.display);
     setShowSuggestions(false);
     setSuggestions([]);
-    if (onSelect) {
-      onSelect(suggestion);
-    }
+    if (onSelect) onSelect(suggestion);
     inputRef.current?.blur();
   };
 
-  // Handle keyboard navigation
   const handleKeyDown = (e) => {
     if (!showSuggestions || suggestions.length === 0) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex((prev) => 
-          prev < suggestions.length - 1 ? prev + 1 : prev
-        );
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-          handleSelectSuggestion(suggestions[selectedIndex]);
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setSelectedIndex(-1);
-        break;
-      default:
-        break;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((p) => (p < suggestions.length - 1 ? p + 1 : p));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((p) => (p > 0 ? p - 1 : -1));
+    } else if (e.key === "Enter" && selectedIndex >= 0 && selectedIndex < suggestions.length) {
+      e.preventDefault();
+      handleSelectSuggestion(suggestions[selectedIndex]);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
     }
   };
 
-  // Close suggestions when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleClickOutside = (e) => {
       if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(event.target) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target)
-      ) {
+        suggestionsRef.current && !suggestionsRef.current.contains(e.target) &&
+        inputRef.current && !inputRef.current.contains(e.target)
+      )
         setShowSuggestions(false);
-      }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, []);
+  useEffect(
+    () => () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    },
+    []
+  );
 
   return (
     <div className="relative">
@@ -177,103 +122,44 @@ const AddressAutocomplete = ({
           value={value}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setShowSuggestions(true);
-            }
-          }}
+          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className={className}
+          className={`w-full px-4 py-3 border border-stone-300 bg-white text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf transition-colors ${className}`}
           autoComplete="off"
         />
         {loading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <svg
-              className="animate-spin h-5 w-5 text-orange-500"
-              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 animate-spin text-sage-600"
               fill="none"
               viewBox="0 0 24 24"
             >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+              />
             </svg>
           </div>
         )}
       </div>
-
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+          className="absolute z-50 w-full mt-1 bg-white border border-stone-200 shadow-soft max-h-56 overflow-y-auto"
         >
-          {suggestions.map((suggestion, index) => (
+          {suggestions.map((suggestion, i) => (
             <button
-              key={index}
+              key={i}
               type="button"
               onClick={() => handleSelectSuggestion(suggestion)}
-              className={`w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors ${
-                index === selectedIndex ? 'bg-orange-50' : ''
-              } ${
-                index === 0 ? 'rounded-t-xl' : ''
-              } ${
-                index === suggestions.length - 1 ? 'rounded-b-xl' : ''
-              } border-b border-gray-100 last:border-b-0`}
+              className={`w-full text-left px-4 py-3 text-stone-800 hover:bg-leaf-pale/60 transition-colors ${
+                i === selectedIndex ? "bg-leaf-pale/60" : ""
+              }`}
             >
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {suggestion.display}
-                  </p>
-                  {suggestion.full !== suggestion.display && (
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {(() => {
-                        const parts = suggestion.full.split(',').map(p => p.trim()).filter(p => p);
-                        // Show city and state if available, otherwise show first 2 non-empty parts
-                        if (suggestion.address) {
-                          const city = suggestion.address.city || suggestion.address.town || suggestion.address.village;
-                          const state = suggestion.address.state;
-                          if (city && state) {
-                            return `${city}, ${state}`;
-                          }
-                        }
-                        // Fallback: show last 2 parts (usually city, state)
-                        return parts.slice(-2).join(', ');
-                      })()}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <span className="text-sm font-medium">{suggestion.display}</span>
             </button>
           ))}
         </div>
@@ -283,5 +169,3 @@ const AddressAutocomplete = ({
 };
 
 export default AddressAutocomplete;
-
-

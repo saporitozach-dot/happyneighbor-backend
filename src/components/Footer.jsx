@@ -1,34 +1,22 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const Footer = ({ className = "" }) => {
-  const linkClass = "text-gray-400 hover:text-orange-400 transition-colors duration-200";
-  return (
-    <footer className={`border-t border-gray-700/50 ${className}`}>
-      <div className="bg-gradient-to-b from-gray-800 to-gray-900">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div className="flex flex-row items-center gap-3 sm:gap-4">
-              <Link to="/" className="text-base font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent tracking-tight">
-                Happy Neighbor
-              </Link>
-              <span className="text-gray-600">·</span>
-              <span className="text-gray-500 text-xs">
-                © {new Date().getFullYear()} Happy Neighbor
-              </span>
-            </div>
-            <nav className="flex flex-wrap justify-center sm:justify-end gap-6 text-sm">
-              <Link to="/how-it-works" className={linkClass}>How It Works</Link>
-              <Link to="/contact" className={linkClass}>Contact</Link>
-              <Link to="/businesses" className={linkClass}>Businesses</Link>
-              <Link to="/privacy" className={linkClass}>Privacy</Link>
-              <Link to="/terms" className={linkClass}>Terms</Link>
-            </nav>
-          </div>
-        </div>
+const Footer = () => (
+  <footer className="border-t border-stone-200 bg-white mt-auto">
+    <div className="w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16 py-5">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+        <Link to="/" className="font-serif font-semibold text-stone-800">
+          Happy Neighbor
+        </Link>
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-stone-500">
+          <Link to="/businesses" className="hover:text-leaf transition-colors">Businesses</Link>
+          <Link to="/contact" className="hover:text-leaf transition-colors">Contact</Link>
+          <Link to="/privacy" className="hover:text-leaf transition-colors">Privacy</Link>
+          <Link to="/terms" className="hover:text-leaf transition-colors">Terms</Link>
+        </nav>
       </div>
-    </footer>
-  );
-};
+    </div>
+  </footer>
+);
 
 export default Footer;

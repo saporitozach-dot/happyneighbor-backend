@@ -1,93 +1,116 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { useAuth } from "../contexts/AuthContext";
-import { StructuredData } from "../components/StructuredData";
-import StatsSection from "../components/StatsSection";
+import Nav from "../components/Nav";
 import Footer from "../components/Footer";
+import AddressAutocomplete from "../components/AddressAutocomplete";
+import StatsSection from "../components/StatsSection";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { API_URL } from "../utils/apiConfig";
 
 const Homepage = () => {
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [address, setAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLookup = async (e) => {
+    e.preventDefault();
+    if (!address.trim()) {
+      setError("Enter your street address");
+      return;
+    }
+    const pattern = /^\d+\s+\w+/;
+    if (!pattern.test(address.trim())) {
+      setError('Enter a valid address (e.g., 123 Main Street, City, State)');
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/lookup-address`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: address.trim() }),
+      });
+      const data = await res.json();
+      if (data.success && data.street?.id) {
+        navigate(`/community`, { state: { address: address.trim(), streetData: data } });
+        return;
+      }
+      navigate(`/community/demo`);
+    } catch {
+      navigate(`/community/demo`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
-        <title>Happy Neighbor - Find Your Perfect Street Match</title>
-        <meta name="description" content="Match with streets that fit your lifestyle. Get transparent street vibes from verified residents." />
+        <title>Happy Neighbor – Connect with Your Neighborhood</title>
+        <meta
+          name="description"
+          content="Your street's private community hub. Connect with neighbors, share events, and build closer relationships."
+        />
       </Helmet>
-      <StructuredData />
-      
-      <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-        {/* Navigation */}
-        <nav className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
-          <div className="px-6 sm:px-10">
-            <div className="grid grid-cols-3 items-center h-14 w-full">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/images/logo.png" alt="Happy Neighbor" className="h-8 w-auto" />
-                <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tracking-tight hidden sm:inline">
-                  Happy Neighbor
-                </span>
-              </Link>
-              <div className="hidden md:flex items-center justify-center gap-8">
-                <Link to="/survey" className="text-gray-700 hover:text-gray-900 transition-colors text-sm font-semibold tracking-wide">Find Your Match</Link>
-                <Link to="/community" className="text-gray-700 hover:text-gray-900 transition-colors text-sm font-semibold tracking-wide">Community Hub</Link>
-                <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors text-sm font-semibold tracking-wide">About</Link>
-              </div>
-              <div className="hidden md:flex justify-end items-center gap-4">
-                {isAuthenticated ? (
-                  <Link to="/profile" className="px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-                    Profile
-                  </Link>
-                ) : (
-                  <Link to="/login" className="px-4 py-2 text-gray-700 hover:text-orange-600 font-semibold transition-colors">
-                    Sign In
-                  </Link>
-                )}
-                <span className="text-sm text-gray-500 italic">Change for the Good</span>
-              </div>
+      <div className="min-h-screen flex flex-col bg-warm-50">
+        <Nav />
+        <main className="flex-1">
+          {/* Hero with photo */}
+          <section className="relative h-[94vh] min-h-[576px]">
+            <div className="absolute inset-0 overflow-hidden">
+              <img
+                src="/images/hero-neighborhood.png"
+                alt="Welcoming neighborhood"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/45" />
             </div>
-          </div>
-        </nav>
-
-        {/* Hero Section - Full Viewport */}
-        <section className="relative h-screen flex items-center overflow-hidden">
-          <div className="absolute inset-0">
-            <img src="/images/hero-neighborhood.png" alt="Happy Neighbor" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-          </div>
-          
-          <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 text-center">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 leading-tight">
-              Find a Street That
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">Feels Like Home</span>
-            </h1>
-            <p className="text-lg sm:text-xl text-gray-200 mb-6 max-w-xl mx-auto">
-              Match with streets based on verified resident reviews
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link to="/survey" className="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                Take the Survey
-              </Link>
-              <Link to="/about" className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white rounded-lg font-semibold text-lg border border-white/30 hover:bg-white/30 transition-all">
-                Learn More
-              </Link>
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center w-full px-6 lg:px-12 xl:px-16 text-center">
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 drop-shadow-md max-w-4xl mx-auto text-center leading-tight">
+                A neighborhood means more when you know your neighbors.
+              </h1>
+              <p className="text-white/95 text-base sm:text-lg max-w-2xl mx-auto mb-8 drop-shadow-sm text-center">
+                Join your street's community hub—where neighbors share events, lend a hand, and build real relationships.
+              </p>
+              <form onSubmit={handleLookup} className="w-full max-w-xl mx-auto flex flex-col items-center">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-center sm:items-center">
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={(v) => { setAddress(v); setError(""); }}
+                    placeholder="Enter your street address"
+                    className="w-full sm:w-72 text-base"
+                    disabled={loading}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="py-3 px-6 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {loading ? "Finding…" : "Find my street"}
+                  </button>
+                </div>
+                {error && <p className="text-sm text-amber-200 mt-2 text-center w-full">{error}</p>}
+                <p className="mt-3 text-sm text-white/80 text-center">Works with any US address.</p>
+              </form>
             </div>
-          </div>
-          
-          {/* Scroll indicator */}
-          <a
-            href="#the-problem"
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer hover:text-white transition-colors"
-            aria-label="Scroll to learn more"
-          >
-            <svg className="w-6 h-6 text-white/70 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </a>
-        </section>
+            <a
+              href="#stats"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors cursor-pointer"
+              aria-label="Scroll to stats"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider">See the data</span>
+              <svg className="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </a>
+          </section>
 
-        {/* Stats Section */}
-        <StatsSection />
-
+          <StatsSection />
+        </main>
         <Footer />
       </div>
     </>

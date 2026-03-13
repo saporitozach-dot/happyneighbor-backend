@@ -155,11 +155,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ============== FILE UPLOAD SETUP ==============
-// Create uploads directory if it doesn't exist
+// Create uploads directories if they don't exist
 const uploadsDir = join(__dirname, 'uploads', 'verifications');
-if (!existsSync(uploadsDir)) {
-  mkdirSync(uploadsDir, { recursive: true });
-}
+const communityProofDir = join(__dirname, 'uploads', 'community-proof');
+if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
+if (!existsSync(communityProofDir)) mkdirSync(communityProofDir, { recursive: true });
 
 // Serve uploaded files statically (for admin review)
 app.use('/uploads', express.static(join(__dirname, 'uploads')));
@@ -180,17 +180,27 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max
-  },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // Accept images and PDFs
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Please upload an image (JPEG, PNG, GIF, WebP) or PDF.'));
-    }
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+    cb(allowed.includes(file.mimetype) ? null : new Error('Please upload an image or PDF.'));
+  }
+});
+
+const communityProofStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, communityProofDir),
+  filename: (req, file, cb) => {
+    const streetId = req.body?.streetId || 'demo';
+    const safe = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `proof-${streetId}-${Date.now()}-${safe}`);
+  }
+});
+const uploadCommunityProof = multer({
+  storage: communityProofStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+    cb(allowed.includes(file.mimetype) ? null : new Error('Please upload an image or PDF.'));
   }
 });
 
@@ -3035,7 +3045,9 @@ app.get('/api/streets/:id/vibe', (req, res) => {
         neighborhood_name: street.neighborhood_name,
         survey_count: surveys.length,
         pending_count: pendingCount,
-        vibe_summary: street.vibe_summary
+        vibe_summary: street.vibe_summary,
+        latitude: street.latitude,
+        longitude: street.longitude
       },
       vibe,
       recentNotes,
@@ -3044,6 +3056,67 @@ app.get('/api/streets/:id/vibe', (req, res) => {
         : (pendingCount > 0 ? `${pendingCount} review${pendingCount === 1 ? '' : 's'} pending verification` : 'No resident data yet')
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get nearby streets for invite flow (uses Overpass API + Nominatim)
+app.post('/api/nearby-streets', async (req, res) => {
+  try {
+    const { lat, lon } = req.body;
+    if (typeof lat !== 'number' || typeof lon !== 'number' || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return res.status(400).json({ error: 'Valid latitude and longitude required' });
+    }
+    const radius = 1500; // meters
+    const overpassUrl = 'https://overpass-api.de/api/interpreter';
+    const query = `[out:json][timeout:15];
+(
+  way(around:${radius},${lat},${lon})["highway"~"^(residential|living_street|primary|secondary|tertiary|unclassified)"]["name"];
+);
+out center;`;
+    const overpassRes = await fetch(overpassUrl, {
+      method: 'POST',
+      body: query,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    if (!overpassRes.ok) {
+      return res.status(502).json({ error: 'Unable to fetch nearby streets' });
+    }
+    const data = await overpassRes.json();
+    const seen = new Set();
+    const streets = [];
+    for (const el of data.elements || []) {
+      if (el.type !== 'way' || !el.tags?.name) continue;
+      const name = (el.tags.name || '').trim();
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      const center = el.center || {};
+      const clat = center.lat || el.bounds?.minlat;
+      const clon = center.lon || el.bounds?.minlon;
+      if (!clat || !clon) continue;
+      streets.push({ name, lat: clat, lon: clon });
+    }
+    // Get city/state from Nominatim reverse geocode of center
+    let city = '', state = '';
+    try {
+      const revUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+      const revRes = await fetch(revUrl, { headers: { 'User-Agent': 'HappyNeighbor/1.0' } });
+      if (revRes.ok) {
+        const rev = await revRes.json();
+        const addr = rev.address || {};
+        city = addr.city || addr.town || addr.village || addr.municipality || '';
+        state = addr.state || '';
+      }
+    } catch (_) {}
+    const result = streets.slice(0, 20).map(s => ({
+      id: `osm-${s.name.replace(/\s/g, '-').toLowerCase()}`,
+      name: s.name,
+      city: city || 'Unknown',
+      state: state || '',
+    }));
+    res.json({ streets: result });
+  } catch (error) {
+    console.error('Nearby streets error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3160,6 +3233,79 @@ app.post('/api/community/verify', (req, res) => {
   } catch (error) {
     console.error('Community verification error:', error);
     res.status(500).json({ verified: false, error: error.message });
+  }
+});
+
+// Submit community hub join survey (gathers neighborhood data)
+try {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS community_hub_surveys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      street_id TEXT,
+      street_name TEXT,
+      city TEXT,
+      state TEXT,
+      sociability INTEGER,
+      know_names INTEGER,
+      events INTEGER,
+      walkability INTEGER,
+      public_schools INTEGER,
+      community_sense INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+} catch (e) { /* table exists */ }
+app.post('/api/community/hub-survey', (req, res) => {
+  try {
+    const { streetId, streetName, city, state, ...answers } = req.body;
+    db.prepare(`
+      INSERT INTO community_hub_surveys (street_id, street_name, city, state, sociability, know_names, events, walkability, public_schools, community_sense)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      streetId || null,
+      streetName || null,
+      city || null,
+      state || null,
+      answers.sociability ?? null,
+      answers.know_names ?? null,
+      answers.events ?? null,
+      answers.walkability ?? null,
+      answers.public_schools ?? null,
+      answers.community_sense ?? null
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Hub survey error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Proof of address upload for community hub
+try {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS community_proof_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      street_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+} catch (e) {}
+app.post('/api/community/proof-of-address', uploadCommunityProof.single('document'), (req, res) => {
+  try {
+    const streetId = req.body?.streetId || 'demo';
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload a document (ID or piece of mail)' });
+    }
+    db.prepare(`
+      INSERT INTO community_proof_submissions (street_id, filename, status)
+      VALUES (?, ?, 'pending')
+    `).run(streetId, req.file.filename);
+    res.json({ success: true, message: 'Document uploaded. Pending review.' });
+  } catch (error) {
+    console.error('Proof of address error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
