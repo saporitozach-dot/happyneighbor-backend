@@ -61,7 +61,7 @@ const StatsSection = () => {
         </div>
         <div className={`text-center mt-10 transition-all duration-500 ${isVisible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "300ms" }}>
           <p className="text-stone-600 mb-4 text-sm">We built Happy Neighbor to change that.</p>
-          <Link to="/community" className="inline-block px-6 py-3 bg-leaf text-stone-900 font-medium hover:bg-leaf-dark transition-colors">
+          <Link to="/community" className="inline-block px-6 py-3 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors">
             Join your community
           </Link>
         </div>

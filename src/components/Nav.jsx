@@ -20,7 +20,7 @@ const Nav = () => (
           </Link>
           <Link
             to="/community"
-            className="px-4 py-2 bg-leaf text-stone-900 hover:bg-leaf-dark transition-colors"
+            className="px-4 py-2 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors"
           >
             Get Started
           </Link>
