@@ -85,14 +85,14 @@ const sendSurveyVerifiedEmail = async (email, streetName, city, state) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #f97316;">Your Review is Live!</h2>
-      <p>Great news! Your review for <strong>${streetName}</strong> in ${city}, ${state} has been verified and is now live on Happy Neighbor.</p>
+      <p>Great news! Your review for <strong>${streetName}</strong> in ${city}, ${state} has been verified and is now live on BlockParty.</p>
       <p>Your insights are helping others find their perfect neighborhood match. Thank you for contributing!</p>
       <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/street/${streetName}" 
          style="display: inline-block; padding: 12px 24px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
         View Your Street Profile
       </a>
       <p style="margin-top: 30px; color: #666; font-size: 14px;">
-        - The Happy Neighbor Team
+        - The BlockParty Team
       </p>
     </div>
   `;
@@ -100,18 +100,18 @@ const sendSurveyVerifiedEmail = async (email, streetName, city, state) => {
 };
 
 const sendWelcomeEmail = async (email, name) => {
-  const subject = 'Welcome to Happy Neighbor! 🏠';
+  const subject = 'Welcome to BlockParty! 🏠';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #f97316;">Welcome, ${name || 'there'}!</h2>
-      <p>Thanks for joining Happy Neighbor! We're excited to help you find streets that match your lifestyle.</p>
+      <p>Thanks for joining BlockParty! We're excited to help you find streets that match your lifestyle.</p>
       <p>Get started by taking our quick survey to see your personalized street matches.</p>
       <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/survey" 
          style="display: inline-block; padding: 12px 24px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
         Take the Survey
       </a>
       <p style="margin-top: 30px; color: #666; font-size: 14px;">
-        - The Happy Neighbor Team
+        - The BlockParty Team
       </p>
     </div>
   `;
@@ -2171,7 +2171,7 @@ app.post('/api/verify-address', async (req, res) => {
     
     const geocodeResponse = await fetch(geocodeUrl, {
       headers: {
-        'User-Agent': 'HappyNeighbor/1.0 (neighborhood-survey-app)'
+        'User-Agent': 'BlockParty/1.0 (neighborhood-survey-app)'
       }
     });
 
@@ -2419,7 +2419,7 @@ app.post('/api/lookup-address', async (req, res) => {
       
       const geocodeResponse = await fetch(geocodeUrl, {
         headers: {
-          'User-Agent': 'HappyNeighbor/1.0 (neighborhood-survey-app)'
+          'User-Agent': 'BlockParty/1.0 (neighborhood-survey-app)'
         }
       });
 
@@ -3100,7 +3100,7 @@ out center;`;
     let city = '', state = '';
     try {
       const revUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
-      const revRes = await fetch(revUrl, { headers: { 'User-Agent': 'HappyNeighbor/1.0' } });
+      const revRes = await fetch(revUrl, { headers: { 'User-Agent': 'BlockParty/1.0' } });
       if (revRes.ok) {
         const rev = await revRes.json();
         const addr = rev.address || {};
@@ -3519,7 +3519,7 @@ app.post('/api/payments/verify', async (req, res) => {
           await emailTransporter.sendMail({
             from: process.env.SMTP_USER,
             to: user.email,
-            subject: 'Welcome to Happy Neighbor Premium!',
+            subject: 'Welcome to BlockParty Premium!',
             html: `
               <h2>Thank you for your purchase!</h2>
               <p>Hi ${user.full_name || 'there'},</p>
@@ -3531,7 +3531,7 @@ app.post('/api/payments/verify', async (req, res) => {
               </ul>
               <p>Start exploring your matches at: <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/results">View Matches</a></p>
               <p>Happy house hunting!</p>
-              <p>- The Happy Neighbor Team</p>
+              <p>- The BlockParty Team</p>
             `
           });
         } catch (emailError) {
@@ -3966,11 +3966,283 @@ app.get('/api/user/subscription', (req, res) => {
   }
 });
 
+// --- BlockParty: block registration, vibe surveys, party planner ---
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS block_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_name TEXT NOT NULL,
+    contact_name TEXT NOT NULL,
+    contact_email TEXT NOT NULL,
+    contact_phone TEXT,
+    street_address TEXT,
+    city TEXT,
+    state TEXT,
+    household_count INTEGER,
+    notes TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS neighborhood_vibe_surveys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id INTEGER NOT NULL,
+    resident_name TEXT,
+    address TEXT,
+    email TEXT,
+    responses_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (street_id) REFERENCES streets(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS party_text_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id INTEGER,
+    phone TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'queued',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+app.post('/api/block-registrations', (req, res) => {
+  try {
+    const {
+      block_name,
+      contact_name,
+      contact_email,
+      contact_phone,
+      street_address,
+      city,
+      state,
+      household_count,
+      notes,
+    } = req.body;
+
+    if (!block_name || !contact_name || !contact_email || !street_address || !city || !state) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const result = db
+      .prepare(
+        `INSERT INTO block_registrations
+        (block_name, contact_name, contact_email, contact_phone, street_address, city, state, household_count, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        block_name,
+        contact_name,
+        contact_email,
+        contact_phone || null,
+        street_address,
+        city,
+        state,
+        household_count ? parseInt(household_count, 10) : null,
+        notes || null
+      );
+
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/neighborhood-vibe-survey', (req, res) => {
+  try {
+    const { street_id, address, email, resident_name, verification_token, responses } = req.body;
+
+    if (!street_id || !responses || typeof responses !== 'object') {
+      return res.status(400).json({ error: 'Street and survey responses required' });
+    }
+
+    const street = db.prepare('SELECT * FROM streets WHERE id = ?').get(street_id);
+    if (!street) return res.status(404).json({ error: 'Street not found' });
+
+    let addressVerified = false;
+    if (verification_token) {
+      try {
+        const tokenData = JSON.parse(Buffer.from(verification_token, 'base64').toString());
+        const tokenAge = Date.now() - tokenData.timestamp;
+        if (tokenAge < 60 * 60 * 1000 && tokenData.streetId === parseInt(street_id, 10)) {
+          addressVerified = true;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!addressVerified) {
+      return res.status(400).json({ error: 'Address verification required', requiresVerification: true });
+    }
+
+    const result = db
+      .prepare(
+        `INSERT INTO neighborhood_vibe_surveys (street_id, resident_name, address, email, responses_json)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(street_id, resident_name || null, address || null, email || null, JSON.stringify(responses));
+
+    res.json({ success: true, surveyId: result.lastInsertRowid });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const buildPartyPlan = ({ templateKey, guests, date, time, streetName }) => {
+  const templates = {
+    summer: {
+      title: 'Summer Block Party',
+      type: 'party',
+      description:
+        'Bring a side or drinks to share. Music, games for kids, and time to meet neighbors you have not talked to yet.',
+      fundingDescription: 'Drinks, ice, and basic supplies for everyone',
+      fundingPerGuest: 4,
+      recommendedPizza: 'Party Pack (3 Large Pizzas)',
+    },
+    holiday: {
+      title: 'Holiday Block Gathering',
+      type: 'party',
+      description: 'Hot cocoa, simple treats, and time to catch up before the holidays get busy.',
+      fundingDescription: 'Cocoa, cups, and holiday decorations',
+      fundingPerGuest: 3,
+      recommendedPizza: 'Large Pepperoni Pizza',
+    },
+    night_out: {
+      title: 'National Night Out Block Meetup',
+      type: 'party',
+      description: 'Meet on the block. Introductions for new families and food on the curb.',
+      fundingDescription: 'Name tags, snacks, and shared tables',
+      fundingPerGuest: 3,
+      recommendedPizza: 'Party Pack (3 Large Pizzas)',
+    },
+    cookout: {
+      title: 'Neighborhood Cookout',
+      type: 'party',
+      description: 'Grills welcome. Coordinate who brings mains, sides, and drinks.',
+      fundingDescription: 'Shared ice, plates, and extras',
+      fundingPerGuest: 5,
+      recommendedPizza: 'Large Cheese Pizza',
+    },
+  };
+
+  const template = templates[templateKey] || templates.summer;
+  const guestCount = Math.max(8, parseInt(guests, 10) || 24);
+  const eventDate =
+    date ||
+    (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 21);
+      return d.toISOString().slice(0, 10);
+    })();
+  const eventTime = time || '16:00';
+  const fundingGoal = Math.round(guestCount * template.fundingPerGuest);
+
+  const timeLabel = eventTime.length >= 5 ? eventTime.slice(0, 5) : eventTime;
+  const notifyMessage = `Hi neighbor! ${streetName || 'Your block'} is planning a ${template.title} on ${eventDate} at ${timeLabel}. RSVP and chip in on BlockParty. Hope to see you there!`;
+
+  return {
+    title: `${template.title} 🎉`,
+    date: eventDate,
+    time: eventTime,
+    type: template.type,
+    description: template.description,
+    needsFunding: true,
+    fundingGoal: String(fundingGoal),
+    fundingDescription: template.fundingDescription,
+    suggestedGuests: guestCount,
+    recommendedPizza: template.recommendedPizza,
+    notifyMessage,
+    checklist: [
+      'Pick a rain date and post it in the event',
+      'Ask two neighbors to help with setup',
+      'Enable chip-in so supplies are covered',
+      `Order pizza: ${template.recommendedPizza} for about ${guestCount} people`,
+      'Send the text invite to neighbors who have not joined the app yet',
+    ],
+  };
+};
+
+app.post('/api/party-planner/plan', (req, res) => {
+  try {
+    const plan = buildPartyPlan(req.body || {});
+    res.json({ success: true, plan });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/party-planner/notify', async (req, res) => {
+  try {
+    const { streetId, streetName, message, phones } = req.body;
+    if (!message || !Array.isArray(phones) || !phones.length) {
+      return res.status(400).json({ error: 'Message and phone numbers required' });
+    }
+
+    const insert = db.prepare(
+      `INSERT INTO party_text_notifications (street_id, phone, message, status) VALUES (?, ?, ?, ?)`
+    );
+
+    let sent = 0;
+    for (const raw of phones) {
+      const phone = String(raw).replace(/\D/g, '');
+      if (phone.length < 10) continue;
+
+      if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER) {
+        try {
+          const auth = Buffer.from(
+            `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+          ).toString('base64');
+          const body = new URLSearchParams({
+            To: phone.length === 10 ? `+1${phone}` : `+${phone}`,
+            From: process.env.TWILIO_FROM_NUMBER,
+            Body: message,
+          });
+          const twilioRes = await fetch(
+            `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body,
+            }
+          );
+          if (twilioRes.ok) {
+            insert.run(streetId || null, phone, message, 'sent');
+            sent += 1;
+          } else {
+            insert.run(streetId || null, phone, message, 'failed');
+          }
+        } catch {
+          insert.run(streetId || null, phone, message, 'failed');
+        }
+      } else {
+        insert.run(streetId || null, phone, message, 'simulated');
+        sent += 1;
+        console.log(`[SMS simulated] To ${phone} (${streetName || 'block'}): ${message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      sent,
+      simulated: !(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
+      message:
+        sent > 0
+          ? `Invites queued for ${sent} neighbor${sent === 1 ? '' : 's'}.`
+          : 'No valid phone numbers found.',
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check / root route
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    message: '🏠 Happy Neighbor API is running!',
+    message: '🎉 BlockParty API is running!',
     version: '1.0.0',
     endpoints: {
       neighborhoods: '/api/neighborhoods',

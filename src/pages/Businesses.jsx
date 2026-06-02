@@ -6,9 +6,9 @@ import Footer from "../components/Footer";
 import { API_URL } from "../utils/apiConfig";
 
 const inputClass =
-  "w-full px-4 py-3 border border-stone-300 bg-white text-stone-800 focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf transition-colors";
+  "w-full px-4 py-3 border border-stone-300 bg-white text-stone-800 focus:outline-none focus:ring-2 focus:ring-party/50 focus:border-party transition-colors";
 const inputSmClass =
-  "w-full px-3 py-2 border border-stone-300 bg-white text-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf transition-colors";
+  "w-full px-3 py-2 border border-stone-300 bg-white text-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-party/50 focus:border-party transition-colors";
 
 const Businesses = () => {
   const [activeTab, setActiveTab] = useState("shops"); // "shops" or "realtors"
@@ -236,39 +236,41 @@ const Businesses = () => {
   return (
     <>
       <Helmet>
-        <title>Business Partnerships - Happy Neighbor</title>
-        <meta name="description" content="Partner with Happy Neighbor - Local shops and realtors can connect with neighborhoods" />
+        <title>Business Partnerships - BlockParty</title>
+        <meta name="description" content="Partner with BlockParty - Local shops and realtors can connect with neighborhoods" />
       </Helmet>
 
-      <div className="min-h-screen flex flex-col bg-warm-50">
+      <div className="min-h-screen flex flex-col site-surface">
         <Nav />
 
         <main className="flex-1 w-full max-w-4xl mx-auto px-6 lg:px-12 xl:px-16 py-12 lg:py-16">
           <div className="text-center mb-10">
-            <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-stone-900 mb-3">Partner with Happy Neighbor</h1>
+            <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 mb-3">Partner with BlockParty</h1>
             <p className="text-stone-600 max-w-2xl mx-auto">
-              Connect your business with local neighborhoods. Help residents discover great local shops and find their perfect home.
+              Connect your business with BlockParty neighborhoods. Show up when blocks plan parties and order local food.
             </p>
           </div>
 
           <div className="flex justify-center mb-8">
-            <div className="inline-flex bg-white border border-stone-200 p-1">
+            <div className="inline-flex rounded-full border border-slate-200 bg-slate-100/90 p-1">
               <button
+                type="button"
                 onClick={() => setActiveTab("shops")}
-                className={`px-6 sm:px-8 py-2.5 text-sm font-medium transition-colors ${
+                className={`rounded-full px-6 sm:px-8 py-2.5 text-sm font-semibold transition-all ${
                   activeTab === "shops"
-                    ? "bg-leaf text-white"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-800 hover:text-slate-900 hover:bg-white/70"
                 }`}
               >
                 Local Shops
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("realtors")}
-                className={`px-6 sm:px-8 py-2.5 text-sm font-medium transition-colors ${
+                className={`rounded-full px-6 sm:px-8 py-2.5 text-sm font-semibold transition-all ${
                   activeTab === "realtors"
-                    ? "bg-leaf text-white"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-800 hover:text-slate-900 hover:bg-white/70"
                 }`}
               >
                 Realtors
@@ -280,14 +282,14 @@ const Businesses = () => {
           {activeTab === "shops" && (
             <div className="bg-white border border-stone-200 shadow-card p-8 md:p-10">
               <div className="mb-8">
-                <div className="border border-leaf/30 bg-leaf-pale p-6 mb-6">
+                <div className="border border-party/30 bg-party-pale p-6 mb-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h2 className="font-serif text-2xl font-semibold text-stone-900 mb-1">Local Shop Partnership</h2>
-                      <p className="text-stone-600 text-sm">Get featured in Community Hub event planning</p>
+                      <h2 className="font-display text-2xl font-semibold text-stone-900 mb-1">Local Shop Partnership</h2>
+                      <p className="text-stone-600 text-sm">Get featured when blocks order party food</p>
                     </div>
                     <div className="sm:text-right">
-                      <div className="text-3xl font-semibold text-leaf">$10</div>
+                      <div className="text-3xl font-semibold text-party">$10</div>
                       <div className="text-stone-500 text-sm">per month</div>
                     </div>
                   </div>
@@ -298,7 +300,7 @@ const Businesses = () => {
               </div>
 
               {submitSuccess && (
-                <div className="bg-leaf-pale border border-leaf/30 p-4 mb-6">
+                <div className="bg-party-pale border border-party/30 p-4 mb-6">
                   <p className="text-stone-800 font-semibold">
                     ✓ Thank you! Your partnership request has been submitted. We'll review it and contact you within 1-2 business days.
                   </p>
@@ -436,7 +438,7 @@ const Businesses = () => {
                     <button
                       type="button"
                       onClick={addMenuItem}
-                      className="px-4 py-2 bg-leaf hover:bg-leaf-dark text-white font-medium text-sm transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-party hover:bg-party-dark text-white font-medium text-sm transition-colors flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -596,13 +598,13 @@ const Businesses = () => {
                   />
                 </div>
 
-                <div className="bg-leaf-pale border border-leaf/30 p-4">
+                <div className="bg-party-pale border border-party/30 p-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={shopForm.createLogin}
                       onChange={(e) => handleShopChange("createLogin", e.target.checked)}
-                      className="w-4 h-4 text-leaf rounded focus:ring-leaf/40"
+                      className="w-4 h-4 text-party rounded focus:ring-party/50"
                     />
                     <span className="text-sm font-semibold text-stone-800">Create login to manage my business page</span>
                   </label>
@@ -636,7 +638,7 @@ const Businesses = () => {
                 <button
                   type="submit"
                   disabled={submitting || shopForm.menu.length === 0 || shopForm.menu.some(item => !item.name || !item.price)}
-                  className="w-full px-8 py-3 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-8 py-3 bg-party text-white font-medium hover:bg-party-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? "Submitting..." : "Submit Partnership Request ($10/month)"}
                 </button>
@@ -652,27 +654,27 @@ const Businesses = () => {
           {activeTab === "realtors" && (
             <div className="bg-white border border-stone-200 shadow-card p-8 md:p-10">
               <div className="mb-8">
-                <h2 className="font-serif text-2xl font-semibold text-stone-900 mb-3">Realtor Partnership</h2>
+                <h2 className="font-display text-2xl font-semibold text-stone-900 mb-3">Realtor Partnership</h2>
                 <p className="text-stone-600 mb-6">
                   Post your property listings in specific areas and connect with homebuyers who are actively searching for neighborhoods that match their lifestyle.
                 </p>
-                <div className="bg-leaf-pale border border-leaf/30 p-6">
+                <div className="bg-party-pale border border-party/30 p-6">
                   <h3 className="font-semibold text-stone-900 mb-3">Benefits</h3>
                   <ul className="space-y-2 text-stone-700 text-sm">
                     <li className="flex items-start gap-2">
-                      <span className="text-leaf mt-0.5">✓</span>
+                      <span className="text-party mt-0.5">✓</span>
                       <span>Post listings in specific streets and cities</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-leaf mt-0.5">✓</span>
+                      <span className="text-party mt-0.5">✓</span>
                       <span>Reach homebuyers who have already matched with those areas</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-leaf mt-0.5">✓</span>
+                      <span className="text-party mt-0.5">✓</span>
                       <span>Showcase properties to engaged, qualified buyers</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-leaf mt-0.5">✓</span>
+                      <span className="text-party mt-0.5">✓</span>
                       <span>Flexible pricing based on listing volume and coverage area</span>
                     </li>
                   </ul>
@@ -680,7 +682,7 @@ const Businesses = () => {
               </div>
 
               {submitSuccess && (
-                <div className="bg-leaf-pale border border-leaf/30 p-4 mb-6">
+                <div className="bg-party-pale border border-party/30 p-4 mb-6">
                   <p className="text-stone-800 font-semibold">
                     ✓ Thank you! We'll contact you soon to discuss partnership details.
                   </p>
@@ -838,7 +840,7 @@ const Businesses = () => {
                       type="checkbox"
                       checked={realtorForm.createLogin}
                       onChange={(e) => handleRealtorChange("createLogin", e.target.checked)}
-                      className="w-4 h-4 text-leaf rounded focus:ring-leaf/40"
+                      className="w-4 h-4 text-party rounded focus:ring-party/50"
                     />
                     <span className="text-sm font-semibold text-stone-800">Create login to manage my realtor page</span>
                   </label>
@@ -872,7 +874,7 @@ const Businesses = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full px-8 py-3 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-8 py-3 bg-party text-white font-medium hover:bg-party-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? "Submitting..." : "Submit Partnership Request"}
                 </button>
@@ -887,7 +889,7 @@ const Businesses = () => {
 
         <section className="border-t border-stone-200 bg-white">
           <div className="w-full max-w-4xl mx-auto px-6 lg:px-12 xl:px-16 py-10">
-            <h2 className="font-serif text-lg font-semibold text-stone-900 mb-4 text-center">Partner login</h2>
+            <h2 className="font-display text-lg font-semibold text-stone-900 mb-4 text-center">Partner login</h2>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="border border-stone-200 p-4">
                 <button
@@ -914,7 +916,7 @@ const Businesses = () => {
                       className={inputSmClass}
                     />
                     {businessLoginError && <p className="text-stone-600 text-xs">{businessLoginError}</p>}
-                    <button type="submit" className="w-full py-2 bg-leaf text-white font-medium text-sm hover:bg-leaf-dark transition-colors">
+                    <button type="submit" className="w-full py-2 bg-party text-white font-medium text-sm hover:bg-party-dark transition-colors">
                       Log in
                     </button>
                   </form>
@@ -945,7 +947,7 @@ const Businesses = () => {
                       className={inputSmClass}
                     />
                     {realtorLoginError && <p className="text-stone-600 text-xs">{realtorLoginError}</p>}
-                    <button type="submit" className="w-full py-2 bg-leaf text-white font-medium text-sm hover:bg-leaf-dark transition-colors">
+                    <button type="submit" className="w-full py-2 bg-party text-white font-medium text-sm hover:bg-party-dark transition-colors">
                       Log in
                     </button>
                   </form>

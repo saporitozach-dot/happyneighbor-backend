@@ -1,11 +1,11 @@
 {
-  "name": "Happy Neighbor",
-  "short_name": "HappyNeighbor",
-  "description": "Find your perfect neighborhood match",
+  "name": "BlockParty",
+  "short_name": "BlockParty",
+  "description": "Your HOA's neighborhood hub for parties, local food, and neighbor connections",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "background_color": "#f5f3ff",
+  "theme_color": "#6366f1",
   "orientation": "portrait",
   "icons": [
     {

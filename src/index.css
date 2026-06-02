@@ -7,9 +7,228 @@ html {
 }
 
 body {
-  @apply font-sans text-stone-800 antialiased bg-warm-50;
+  @apply font-sans text-slate-800 antialiased;
+  background-color: #f5f3ff;
 }
 
-a:focus-visible, button:focus-visible {
-  @apply outline-none ring-2 ring-[#5c7f6c] ring-offset-2;
+/* Always apply — do not rely on Tailwind utilities alone for hero/surface */
+.site-surface {
+  background-color: #f5f3ff;
+}
+
+.page-hero,
+.hero-bg {
+  background-color: #1e1b4b;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(129, 140, 248, 0.45), transparent),
+    radial-gradient(ellipse 60% 50% at 100% 50%, rgba(168, 85, 247, 0.35), transparent),
+    radial-gradient(ellipse 50% 40% at 0% 80%, rgba(14, 165, 233, 0.3), transparent),
+    linear-gradient(165deg, #0f0a1f 0%, #1e1b4b 40%, #312e81 100%);
+  color: #ffffff;
+}
+
+.page-hero .hero-label {
+  color: #c7d2fe;
+}
+
+.page-hero .hero-title {
+  color: #ffffff;
+}
+
+.page-hero .hero-subtitle {
+  color: #cbd5e1;
+}
+
+.glass-nav-hero {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background-color: rgba(15, 10, 31, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Homepage: one tall section — single gradient + shared blobs */
+.home-canvas {
+  position: relative;
+  color: #ffffff;
+  overflow-x: hidden;
+  background-color: #1a1740;
+  background-image:
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(129, 140, 248, 0.38), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 95% 35%, rgba(168, 85, 247, 0.22), transparent 52%),
+    radial-gradient(ellipse 50% 42% at 5% 55%, rgba(14, 165, 233, 0.18), transparent 50%),
+    radial-gradient(ellipse 65% 50% at 50% 100%, rgba(99, 102, 241, 0.22), transparent 55%),
+    linear-gradient(180deg, #0f0a1f 0%, #1e1b4b 38%, #27235a 68%, #1e1b4b 100%);
+}
+
+.home-canvas.page-hero {
+  background-color: #1a1740;
+  background-image:
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(129, 140, 248, 0.38), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 95% 35%, rgba(168, 85, 247, 0.22), transparent 52%),
+    radial-gradient(ellipse 50% 42% at 5% 55%, rgba(14, 165, 233, 0.18), transparent 50%),
+    radial-gradient(ellipse 65% 50% at 50% 100%, rgba(99, 102, 241, 0.22), transparent 55%),
+    linear-gradient(180deg, #0f0a1f 0%, #1e1b4b 38%, #27235a 68%, #1e1b4b 100%);
+}
+
+.home-canvas .home-hero-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+}
+
+.home-canvas-blobs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-canvas-flow {
+  position: relative;
+  z-index: 10;
+}
+
+.home-canvas-hero {
+  position: relative;
+  min-height: 100svh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5.5rem 0 5rem;
+}
+
+.home-canvas-block {
+  padding: 3.5rem 0 4rem;
+}
+
+.home-canvas-block:last-child {
+  padding-bottom: 5rem;
+}
+
+.home-footer-bridge {
+  background: linear-gradient(180deg, #1e1b4b 0%, #c7d2fe 3rem, #f5f3ff 5.5rem);
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400;
+  }
+
+  .btn-party {
+    @apply inline-flex items-center justify-center px-6 py-3 font-semibold text-white rounded-full hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    background-image: linear-gradient(135deg, #6366f1 0%, #7c3aed 50%, #0ea5e9 100%);
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.35);
+  }
+
+  .btn-party-sm {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white rounded-full hover:opacity-95 transition-all duration-200;
+    background-image: linear-gradient(135deg, #6366f1 0%, #7c3aed 50%, #0ea5e9 100%);
+    box-shadow: 0 2px 16px rgba(15, 10, 31, 0.04);
+  }
+
+  .btn-party-outline {
+    @apply inline-flex items-center justify-center px-6 py-3 font-semibold rounded-full border backdrop-blur transition-all duration-200;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #4f46e5;
+  }
+
+  .btn-party-outline:hover {
+    background-color: #ede9fe;
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 2px 16px rgba(15, 10, 31, 0.04);
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl rounded-3xl;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 24px rgba(15, 10, 31, 0.06);
+  }
+
+  .glass-card-hover {
+    @apply backdrop-blur-xl rounded-3xl hover:-translate-y-0.5 transition-all duration-300;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 24px rgba(15, 10, 31, 0.06);
+  }
+
+  .glass-card-hover:hover {
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+  }
+
+  .glass-nav {
+    @apply backdrop-blur-xl border-b;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(226, 232, 240, 0.6);
+    box-shadow: 0 2px 16px rgba(15, 10, 31, 0.04);
+  }
+
+  .input-party {
+    @apply w-full px-4 py-3.5 rounded-2xl border border-slate-200/80 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200;
+    --tw-ring-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .input-party:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  .liquid-blob {
+    @apply absolute rounded-full blur-3xl opacity-40 pointer-events-none;
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+
+  .section-dark {
+    @apply text-white;
+    background-image: linear-gradient(to bottom, #020617, #312e81, #0f172a);
+  }
+
+  .section-label {
+    @apply inline-block text-xs font-bold uppercase tracking-[0.15em] mb-3;
+    color: #6366f1;
+  }
+
+  .section-title {
+    @apply text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight;
+    font-family: Outfit, "Plus Jakarta Sans", system-ui, sans-serif;
+  }
+
+  .page-container {
+    @apply w-full max-w-6xl mx-auto px-5 lg:px-8;
+  }
+
+  .icon-badge {
+    @apply flex h-12 w-12 items-center justify-center rounded-2xl text-xl border;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(124, 58, 237, 0.08) 100%);
+    border-color: rgba(99, 102, 241, 0.1);
+  }
+
+  .bento-card {
+    @apply rounded-3xl border p-5;
+    background-color: #ffffff;
+    border-color: rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 16px rgba(15, 10, 31, 0.04);
+  }
+}
+
+a:focus-visible,
+button:focus-visible {
+  @apply outline-none ring-2 ring-offset-2;
+  --tw-ring-color: #6366f1;
+}
+
+::selection {
+  background-color: #ede9fe;
+  color: #312e81;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
 }

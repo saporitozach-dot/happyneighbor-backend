@@ -28,7 +28,7 @@ const AddressAutocomplete = ({
         `https://nominatim.openstreetmap.org/search?` +
           `format=json&q=${encodeURIComponent(query)}&` +
           `addressdetails=1&limit=5&countrycodes=us&extratags=1`,
-        { headers: { "User-Agent": "HappyNeighbor/1.0" } }
+        { headers: { "User-Agent": "BlockParty/1.0" } }
       );
       if (response.ok) {
         const data = await response.json();
@@ -125,7 +125,7 @@ const AddressAutocomplete = ({
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full px-4 py-3 border border-stone-300 bg-white text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf transition-colors ${className}`}
+          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-party/50 focus:border-party transition-colors ${className}`}
           autoComplete="off"
         />
         {loading && (
@@ -155,8 +155,8 @@ const AddressAutocomplete = ({
               key={i}
               type="button"
               onClick={() => handleSelectSuggestion(suggestion)}
-              className={`w-full text-left px-4 py-3 text-stone-800 hover:bg-leaf-pale/60 transition-colors ${
-                i === selectedIndex ? "bg-leaf-pale/60" : ""
+              className={`w-full text-left px-4 py-3 text-slate-800 hover:bg-party-pale/80 transition-colors rounded-lg ${
+                i === selectedIndex ? "bg-party-pale/80" : ""
               }`}
             >
               <span className="text-sm font-medium">{suggestion.display}</span>

@@ -1,6 +1,6 @@
-# Happy Neighbor
+# BlockParty
 
-A neighborhood matching platform that helps homebuyers find communities that fit their lifestyle preferences.
+The neighborhood hub for HOAs—plan block parties, order local food, and connect neighbors on every block.
 
 ## Features
 

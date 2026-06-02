@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
+import PartyPlannerModal from "../components/PartyPlannerModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://happyneighbor-api-production.up.railway.app/api";
 
@@ -15,7 +16,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
         <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
         <div className="relative bg-white border border-stone-200 shadow-card max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-serif text-xl font-semibold text-stone-900">{title}</h3>
+            <h3 className="font-display text-xl font-semibold text-stone-900">{title}</h3>
             <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-2xl">&times;</button>
           </div>
           {children}
@@ -36,6 +37,7 @@ const Community = () => {
 
   // Modal states
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showPartyPlanner, setShowPartyPlanner] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showHelperModal, setShowHelperModal] = useState(false);
   const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
@@ -341,6 +343,23 @@ const Community = () => {
     return newEvent.partnerShopItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  const pizzaPartnerShops = partnerShops.filter((shop) => shop.type === "pizza");
+
+  const handlePublishFromPlanner = (planned) => {
+    const event = {
+      id: Date.now(),
+      ...planned,
+      houseNumber: "Your House",
+      attendees: 1,
+      going: true,
+      fundingGoal: parseInt(planned.fundingGoal, 10) || 0,
+      fundingRaised: 0,
+      fundingBackers: 0,
+    };
+    setEvents([event, ...events]);
+    setActiveTab("events");
+  };
+
   const handleCreateEvent = () => {
     if (!newEvent.title || !newEvent.date || !newEvent.time) {
       alert("Please fill in title, date, and time");
@@ -523,8 +542,8 @@ const Community = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-warm-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-200 border-t-leaf"></div>
+      <div className="min-h-screen site-surface flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-200 border-t-party"></div>
       </div>
     );
   }
@@ -534,42 +553,42 @@ const Community = () => {
     return (
       <>
         <Helmet>
-          <title>Community Hub - Verification Required | Happy Neighbor</title>
+          <title>Block Hub - Verification Required | BlockParty</title>
         </Helmet>
-        <div className="min-h-screen flex flex-col bg-warm-50">
+        <div className="min-h-screen flex flex-col site-surface">
           <Nav />
-          <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="flex-1 flex items-center justify-center px-5 py-12">
             <div className="max-w-md w-full">
-              <div className="bg-white border border-stone-200 shadow-card p-8 md:p-10 text-center">
+              <div className="glass-card p-8 lg:p-10 text-center">
                 <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-leaf-pale border border-leaf/20">
-                    <svg className="w-8 h-8 text-leaf" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-party/20">
+                    <svg className="w-8 h-8 text-party" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
                 </div>
 
-                <h1 className="font-serif text-2xl font-semibold text-stone-900 mb-3">Community Hub Access</h1>
-                <p className="text-stone-600 mb-6">
+                <h1 className="font-display text-2xl font-bold text-slate-900 mb-3">Block Hub access</h1>
+                <p className="text-slate-600 mb-6 text-sm leading-relaxed">
                   {isDemo 
-                    ? "This is a demo of the Community Hub. Enter the code below to explore!"
-                    : <>Exclusively for verified residents of <span className="font-semibold text-leaf">{street?.name || "this street"}</span>.</>
+                    ? "Explore the full BlockParty experience. Enter the code below to jump in."
+                    : <>Exclusively for verified residents of <span className="font-semibold text-party">{street?.name || "this street"}</span>.</>
                   }
                 </p>
 
                 {isDemo ? (
-                  <div className="bg-leaf-pale border border-leaf/30 p-4 mb-6 text-left">
-                    <p className="text-sm font-semibold text-stone-800">Demo mode</p>
-                    <p className="text-sm text-stone-600 mt-2">
-                      Type <span className="font-mono font-medium bg-white px-2 py-0.5 border border-stone-200">DEMO</span> below to explore the Community Hub.
+                  <div className="rounded-2xl bg-party-pale/80 border border-party/20 p-4 mb-6 text-left">
+                    <p className="text-sm font-semibold text-slate-800">Demo mode</p>
+                    <p className="text-sm text-slate-600 mt-2">
+                      Type <span className="font-mono font-medium bg-white px-2 py-0.5 rounded-lg border border-slate-200">DEMO</span> below to explore.
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-warm-100 border border-stone-200 p-4 mb-6 text-left">
-                    <p className="text-sm font-semibold text-stone-800">How to get access:</p>
-                    <ol className="text-sm text-stone-600 mt-2 space-y-1 list-decimal list-inside">
-                      <li>Submit a street review with address verification</li>
-                      <li>Once approved, receive your code via email</li>
+                  <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 mb-6 text-left">
+                    <p className="text-sm font-semibold text-slate-800">How to get access</p>
+                    <ol className="text-sm text-slate-600 mt-2 space-y-1 list-decimal list-inside">
+                      <li>Verify your address through your HOA</li>
+                      <li>Receive your access code via email</li>
                       <li>Enter the code below to unlock</li>
                     </ol>
                   </div>
@@ -581,15 +600,15 @@ const Community = () => {
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(e.target.value)}
                     placeholder={isDemo ? "Type DEMO" : "Enter verification code"}
-                    className="w-full px-4 py-3 border border-stone-300 bg-white text-stone-800 focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf text-center text-lg tracking-wider"
+                    className="input-party text-center text-lg tracking-wider"
                   />
                   {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
-                  <button onClick={handleVerify} className="w-full px-6 py-3 bg-leaf text-white font-medium hover:bg-leaf-dark transition-colors">
-                    {isDemo ? "Explore Demo" : "Unlock Community Hub"}
+                  <button onClick={handleVerify} className="btn-party w-full">
+                    {isDemo ? "Explore demo" : "Unlock block hub"}
                   </button>
                   {!isDemo && (
-                    <p className="text-xs text-stone-500">
-                      Don&apos;t have a code? <Link to="/community" className="text-leaf hover:underline">Join your community</Link>
+                    <p className="text-xs text-slate-500">
+                      Don&apos;t have a code? <Link to="/community" className="text-party hover:underline">Join your block</Link>
                     </p>
                   )}
                 </div>
@@ -602,35 +621,36 @@ const Community = () => {
     );
   }
 
-  // Main Community Hub
+  // Main Block Hub
   return (
     <>
       <Helmet>
-        <title>{street?.name} Community Hub | Happy Neighbor</title>
+        <title>{street?.name} Block Hub | BlockParty</title>
       </Helmet>
 
-      <div className="min-h-screen flex flex-col bg-warm-50">
+      <div className="min-h-screen flex flex-col site-surface">
         <Nav />
 
         {/* Header */}
-        <div className="border-b border-stone-200 bg-white">
-          <div className="w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16 py-8">
+        <div className="hero-bg relative border-b border-white/10 overflow-hidden text-white">
+          <div className="liquid-blob w-64 h-64 bg-violet-400 top-0 right-10 opacity-40" />
+          <div className="relative w-full max-w-6xl mx-auto px-5 lg:px-8 py-10">
             <div className="flex items-center gap-3 mb-3">
-              <span className={`px-3 py-1 text-xs font-medium uppercase tracking-wider ${isDemo ? "bg-leaf-pale text-leaf border border-leaf/30" : "bg-stone-100 text-stone-600 border border-stone-200"}`}>
-                {isDemo ? "Demo" : "Verified resident"}
+              <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full ${isDemo ? "bg-white/20 text-white border border-white/30" : "bg-emerald-400/20 text-emerald-100 border border-emerald-400/40"}`}>
+                {isDemo ? "Demo block" : "Verified neighbor"}
               </span>
             </div>
-            <h1 className="font-serif text-3xl md:text-4xl font-semibold text-stone-900 mb-1">{street?.name} Community Hub</h1>
-            <p className="text-stone-600">{street?.city}, {street?.state}</p>
-            <p className="text-stone-500 text-sm mt-4 max-w-xl">
-              Posts show house numbers only — walk over and say hi.
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-white mb-1">{street?.name} Block Hub</h1>
+            <p className="text-slate-300">{street?.city}, {street?.state}</p>
+            <p className="text-slate-400 text-sm mt-4 max-w-xl">
+              Plan parties, order local food, and connect with neighbors on your block.
             </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border-b border-stone-200 sticky top-14 z-40">
-          <div className="w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16">
+        <div className="bg-white/90 backdrop-blur border-b border-slate-200 sticky top-[4.25rem] z-40">
+          <div className="w-full max-w-6xl mx-auto px-5 lg:px-8">
             <div className="flex gap-1 overflow-x-auto">
               {[
                 { id: "events", label: "Events & Fundraising", icon: "📅" },
@@ -643,8 +663,8 @@ const Community = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-5 py-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                     activeTab === tab.id
-                      ? "border-leaf text-leaf"
-                      : "border-transparent text-stone-600 hover:text-leaf hover:border-stone-200"
+                      ? "border-party text-party"
+                      : "border-transparent text-stone-600 hover:text-party hover:border-stone-200"
                   }`}
                 >
                   <span className="mr-2">{tab.icon}</span>{tab.label}
@@ -660,14 +680,29 @@ const Community = () => {
           {/* Events Tab */}
           {activeTab === "events" && (
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                 <div>
-                  <h2 className="font-serif text-2xl font-semibold text-stone-900">Events & Fundraising</h2>
-                  <p className="text-stone-500 text-sm mt-1">Block parties, garage sales, and neighborhood fun — with optional crowdfunding!</p>
+                  <h2 className="font-display text-2xl font-semibold text-stone-900">Events & Fundraising</h2>
+                  <p className="text-stone-500 text-sm mt-1">
+                    Plan a block party in minutes with AI, order pizza, and let neighbors chip in.
+                  </p>
                 </div>
-                <button onClick={() => setShowEventModal(true)} className="px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-all flex items-center gap-2">
-                  <span>+</span> Post Event
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartyPlanner(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium hover:opacity-95 transition-all flex items-center gap-2"
+                  >
+                    ✨ Plan block party
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowEventModal(true)}
+                    className="px-4 py-2 border border-stone-300 text-stone-800 rounded-lg font-medium hover:bg-stone-50 transition-all"
+                  >
+                    + Manual event
+                  </button>
+                </div>
               </div>
 
               <div className="bg-warm-100 border border-stone-200 rounded-xl p-4 mb-6">
@@ -683,7 +718,7 @@ const Community = () => {
                   const fundingPercent = event.needsFunding ? Math.min((event.fundingRaised / event.fundingGoal) * 100, 100) : 0;
                   
                   return (
-                    <div key={event.id} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition-all flex flex-col">
+                    <div key={event.id} className="glass-card overflow-hidden hover:shadow-cardHover transition-all duration-300 flex flex-col p-0">
                       <div className="p-5 flex-1">
                         <div className="flex items-start justify-between mb-3">
                           <span className="text-3xl">{getEventIcon(event.type)}</span>
@@ -693,7 +728,7 @@ const Community = () => {
                                 {isFunded ? "💰 Funded!" : "💰 Raising funds"}
                               </span>
                             )}
-                            <span className="text-xs font-medium text-leaf bg-leaf-pale px-2 py-1 rounded-full">{event.attendees} going</span>
+                            <span className="text-xs font-medium text-party bg-party-pale px-2 py-1 rounded-full">{event.attendees} going</span>
                           </div>
                         </div>
                         <h3 className="font-bold text-stone-900 text-lg mb-2">{event.title}</h3>
@@ -708,7 +743,7 @@ const Community = () => {
                             <span>Food & drinks ordered</span>
                           </div>
                         )}
-                        <p className="text-xs text-leaf font-medium mt-3">🏠 Posted by #{event.houseNumber}</p>
+                        <p className="text-xs text-party font-medium mt-3">🏠 Posted by #{event.houseNumber}</p>
 
                         {/* Crowdfunding Section */}
                         {event.needsFunding && (
@@ -719,7 +754,7 @@ const Community = () => {
                             </div>
                             <div className="w-full bg-stone-200 rounded-full h-2 mb-2">
                               <div 
-                                className={`h-2 rounded-full transition-all ${isFunded ? "bg-green-500" : "bg-leaf"}`}
+                                className={`h-2 rounded-full transition-all ${isFunded ? "bg-green-500" : "bg-party"}`}
                                 style={{ width: `${fundingPercent}%` }}
                               />
                             </div>
@@ -729,18 +764,18 @@ const Community = () => {
                               <div className="flex gap-2 mt-3">
                                 <button onClick={() => handleChipIn(event.id, 5)} className="flex-1 px-2 py-1.5 bg-stone-100 text-stone-700 rounded-lg text-xs hover:bg-stone-200 transition-colors">$5</button>
                                 <button onClick={() => handleChipIn(event.id, 10)} className="flex-1 px-2 py-1.5 bg-stone-100 text-stone-700 rounded-lg text-xs hover:bg-stone-200 transition-colors">$10</button>
-                                <button onClick={() => handleChipIn(event.id, 25)} className="flex-1 px-2 py-1.5 bg-leaf text-white rounded-lg text-xs hover:bg-leaf-dark transition-colors">$25</button>
+                                <button onClick={() => handleChipIn(event.id, 25)} className="flex-1 px-2 py-1.5 bg-party text-white rounded-lg text-xs hover:bg-party-dark transition-colors">$25</button>
                               </div>
                             )}
                           </div>
                         )}
                       </div>
                       <div className="bg-stone-50 px-5 py-3 flex justify-between items-center border-t border-stone-100">
-                        <button onClick={() => setShowDetailModal(event)} className="text-leaf font-medium text-sm hover:underline">View Details</button>
+                        <button onClick={() => setShowDetailModal(event)} className="text-party font-medium text-sm hover:underline">View Details</button>
                         <button 
                           onClick={() => handleGoingToggle(event.id)}
                           className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-                            event.going ? "bg-green-100 text-green-700" : "bg-leaf text-white hover:bg-leaf-dark"
+                            event.going ? "bg-green-100 text-green-700" : "bg-party text-white hover:bg-party-dark"
                           }`}
                         >
                           {event.going ? "✓ Going!" : "I'm Going!"}
@@ -758,10 +793,10 @@ const Community = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="font-serif text-2xl font-semibold text-stone-900">Neighborhood Marketplace</h2>
+                  <h2 className="font-display text-2xl font-semibold text-stone-900">Neighborhood Marketplace</h2>
                   <p className="text-stone-500 text-sm mt-1">Buy, sell, trade, or give away items with your neighbors</p>
                 </div>
-                <button onClick={() => setShowMarketplaceModal(true)} className="px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-all flex items-center gap-2">
+                <button onClick={() => setShowMarketplaceModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
                   <span>+</span> Post Listing
                 </button>
               </div>
@@ -769,7 +804,7 @@ const Community = () => {
               {/* Filter Pills */}
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 {["All", "For Sale", "Free", "Trade"].map((filter) => (
-                  <button key={filter} className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm font-medium text-stone-600 hover:bg-leaf-pale hover:border-stone-400 hover:text-leaf transition-all whitespace-nowrap">
+                  <button key={filter} className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm font-medium text-stone-600 hover:bg-party-pale hover:border-stone-400 hover:text-party transition-all whitespace-nowrap">
                     {filter === "Free" && "🎁 "}{filter === "Trade" && "🔄 "}{filter}
                   </button>
                 ))}
@@ -811,7 +846,7 @@ const Community = () => {
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="font-bold text-stone-900">{listing.title}</h3>
                           {listing.listingType === "sell" && (
-                            <span className="text-lg font-bold text-leaf">${listing.price}</span>
+                            <span className="text-lg font-bold text-party">${listing.price}</span>
                           )}
                         </div>
                         <p className="text-sm text-stone-600 mb-3 line-clamp-2 flex-1">{listing.description}</p>
@@ -830,7 +865,7 @@ const Community = () => {
                           </button>
                           <button 
                             onClick={() => handleInterested(listing.id)}
-                            className="flex-1 px-3 py-2 bg-leaf text-white rounded-lg text-sm font-medium hover:bg-leaf-dark transition-colors"
+                            className="flex-1 px-3 py-2 bg-party text-white rounded-lg text-sm font-medium hover:bg-party-dark transition-colors"
                           >
                             I'm Interested
                           </button>
@@ -848,10 +883,10 @@ const Community = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="font-serif text-2xl font-semibold text-stone-900">Neighbor Task Board</h2>
+                  <h2 className="font-display text-2xl font-semibold text-stone-900">Neighbor Task Board</h2>
                   <p className="text-stone-500 text-sm mt-1">Need a hand? Ask your neighbors!</p>
                 </div>
-                <button onClick={() => setShowTaskModal(true)} className="px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-all flex items-center gap-2">
+                <button onClick={() => setShowTaskModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
                   <span>+</span> Request Help
                 </button>
               </div>
@@ -865,7 +900,7 @@ const Community = () => {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-bold text-stone-900 text-lg">{task.title}</h3>
-                            <p className="text-xs text-leaf font-medium">🏠 House #{task.houseNumber}</p>
+                            <p className="text-xs text-party font-medium">🏠 House #{task.houseNumber}</p>
                           </div>
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             task.urgency === "high" ? "bg-red-100 text-red-700" :
@@ -877,8 +912,8 @@ const Community = () => {
                         </div>
                         <p className="text-stone-600 mt-2">{task.description}</p>
                         <div className="flex items-center justify-between mt-4">
-                          <span className="text-sm text-leaf font-medium">{task.offers} neighbor{task.offers !== 1 && "s"} offered to help</span>
-                          <button onClick={() => handleOfferHelp(task.id)} className="px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-colors text-sm">
+                          <span className="text-sm text-party font-medium">{task.offers} neighbor{task.offers !== 1 && "s"} offered to help</span>
+                          <button onClick={() => handleOfferHelp(task.id)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-colors text-sm">
                             I Can Help!
                           </button>
                         </div>
@@ -895,20 +930,20 @@ const Community = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="font-serif text-2xl font-semibold text-stone-900">Local Helpers</h2>
+                  <h2 className="font-display text-2xl font-semibold text-stone-900">Local Helpers</h2>
                   <p className="text-stone-500 text-sm mt-1">Trusted services from your neighbors</p>
                 </div>
-                <button onClick={() => setShowHelperModal(true)} className="px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-all flex items-center gap-2">
+                <button onClick={() => setShowHelperModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
                   <span>+</span> List Your Service
                 </button>
               </div>
 
-              <div className="bg-leaf-pale border border-leaf/30 rounded-xl p-4 mb-6">
+              <div className="bg-party-pale border border-party/30 rounded-xl p-4 mb-6">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">💼</span>
                   <div>
                     <p className="font-semibold text-stone-900">Become a Local Helper</p>
-                    <p className="text-sm text-stone-600 mt-1">List your services for just <strong className="text-leaf">$5/month</strong>. Help neighbors & earn extra income!</p>
+                    <p className="text-sm text-stone-600 mt-1">List your services for just <strong className="text-party">$5/month</strong>. Help neighbors & earn extra income!</p>
                   </div>
                 </div>
               </div>
@@ -922,9 +957,9 @@ const Community = () => {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-bold text-stone-900 text-lg">{helper.title}</h3>
-                            <p className="text-xs text-leaf font-medium">🏠 House #{helper.houseNumber}</p>
+                            <p className="text-xs text-party font-medium">🏠 House #{helper.houseNumber}</p>
                           </div>
-                          <span className="text-lg font-bold text-leaf">{helper.price}</span>
+                          <span className="text-lg font-bold text-party">{helper.price}</span>
                         </div>
                         <p className="text-stone-600 mt-2 text-sm">{helper.description}</p>
                         <div className="flex items-center gap-4 mt-3 text-sm">
@@ -934,7 +969,7 @@ const Community = () => {
                         </div>
                         <button 
                           onClick={() => setShowContactModal(helper)}
-                          className="mt-4 w-full px-4 py-2 bg-leaf text-white rounded-lg font-medium hover:bg-leaf-dark transition-colors text-sm"
+                          className="mt-4 w-full px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-colors text-sm"
                         >
                           Contact #{helper.houseNumber}
                         </button>
@@ -946,6 +981,14 @@ const Community = () => {
             </div>
           )}
         </main>
+
+        <PartyPlannerModal
+          isOpen={showPartyPlanner}
+          onClose={() => setShowPartyPlanner(false)}
+          onPublish={handlePublishFromPlanner}
+          streetName={street?.name}
+          streetId={streetId}
+        />
 
         {/* MODALS */}
 
@@ -964,24 +1007,24 @@ const Community = () => {
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Event Title</label>
               <input type="text" value={newEvent.title} onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                placeholder="Summer BBQ, Garage Sale, etc." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                placeholder="Summer BBQ, Garage Sale, etc." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Date</label>
                 <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Time</label>
                 <input type="time" value={newEvent.time} onChange={(e) => setNewEvent({...newEvent, time: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Event Type</label>
               <select value={newEvent.type} onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf">
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
                 <option value="party">🎉 Party / Gathering</option>
                 <option value="sale">🏷️ Garage Sale</option>
                 <option value="activity">🎯 Activity / Sports</option>
@@ -993,7 +1036,7 @@ const Community = () => {
               <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
               <textarea value={newEvent.description} onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
                 rows="3" placeholder="What should neighbors know about this event?"
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
 
             {/* Crowdfunding Toggle */}
@@ -1003,7 +1046,7 @@ const Community = () => {
                   type="checkbox" 
                   checked={newEvent.needsFunding} 
                   onChange={(e) => setNewEvent({...newEvent, needsFunding: e.target.checked})}
-                  className="w-5 h-5 rounded border-stone-300 text-leaf focus:ring-leaf/40"
+                  className="w-5 h-5 rounded border-stone-300 text-party focus:ring-party/50"
                 />
                 <div>
                   <span className="font-medium text-stone-900">💰 Enable Crowdfunding</span>
@@ -1018,12 +1061,12 @@ const Community = () => {
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Funding Goal ($)</label>
                   <input type="number" value={newEvent.fundingGoal} onChange={(e) => setNewEvent({...newEvent, fundingGoal: e.target.value})}
-                    placeholder="200" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                    placeholder="200" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">What's the funding for?</label>
                   <input type="text" value={newEvent.fundingDescription} onChange={(e) => setNewEvent({...newEvent, fundingDescription: e.target.value})}
-                    placeholder="Bounce house rental, food & drinks, decorations..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                    placeholder="Bounce house rental, food & drinks, decorations..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
                 </div>
               </div>
             )}
@@ -1032,12 +1075,12 @@ const Community = () => {
             <div className="border-t border-stone-200 pt-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <span className="font-medium text-stone-900">🍕 Order from Partner Shops</span>
-                  <p className="text-xs text-stone-500">One-click food & drinks for your event</p>
+                  <span className="font-medium text-stone-900">🍕 Order pizza for your event</span>
+                  <p className="text-xs text-stone-500">Local pizza partners on your block</p>
                 </div>
                 <button
                   onClick={() => setShowPartnerShops(!showPartnerShops)}
-                  className="text-sm text-leaf hover:text-leaf-dark font-medium"
+                  className="text-sm text-party hover:text-party-dark font-medium"
                 >
                   {showPartnerShops ? "Hide Shops" : "Browse Shops"}
                 </button>
@@ -1048,11 +1091,11 @@ const Community = () => {
                   {/* Shop Selection */}
                   {!selectedShop ? (
                     <div className="grid grid-cols-2 gap-3">
-                      {partnerShops.map((shop) => (
+                      {pizzaPartnerShops.map((shop) => (
                         <button
                           key={shop.id}
                           onClick={() => setSelectedShop(shop)}
-                          className="p-3 border-2 border-stone-200 rounded-lg hover:border-leaf hover:bg-leaf-pale transition-all text-left"
+                          className="p-3 border-2 border-stone-200 rounded-lg hover:border-party hover:bg-party-pale transition-all text-left"
                         >
                           <div className="text-2xl mb-1">{shop.icon}</div>
                           <div className="font-semibold text-sm text-stone-900">{shop.name}</div>
@@ -1085,7 +1128,7 @@ const Community = () => {
                         {selectedShop.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between p-3 border border-stone-200 rounded-lg hover:bg-leaf-pale transition-colors"
+                            className="flex items-center justify-between p-3 border border-stone-200 rounded-lg hover:bg-party-pale transition-colors"
                           >
                             <div className="flex-1">
                               <div className="font-medium text-sm text-stone-900">{item.name}</div>
@@ -1097,7 +1140,7 @@ const Community = () => {
                               </div>
                               <button
                                 onClick={() => handleAddShopItem(selectedShop.id, item)}
-                                className="px-3 py-1 bg-leaf text-white text-sm rounded-lg hover:bg-leaf-dark transition-colors"
+                                className="px-3 py-1 bg-party text-white text-sm rounded-lg hover:bg-party-dark transition-colors"
                               >
                                 Add
                               </button>
@@ -1152,7 +1195,7 @@ const Community = () => {
                       </div>
                       <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
                         <span className="font-semibold text-stone-900">Total:</span>
-                        <span className="text-lg font-bold text-leaf">${getTotalShopCost().toFixed(2)}</span>
+                        <span className="text-lg font-bold text-party">${getTotalShopCost().toFixed(2)}</span>
                       </div>
                       <p className="text-xs text-stone-500 mt-2">
                         💳 Payment will be processed when you confirm the order
@@ -1163,7 +1206,7 @@ const Community = () => {
               )}
             </div>
 
-            <button onClick={handleCreateEvent} className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors">
+            <button onClick={handleCreateEvent} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
               {newEvent.needsFunding ? "Post Event with Fundraising" : "Post Event"}
             </button>
           </div>
@@ -1175,13 +1218,13 @@ const Community = () => {
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">What do you need help with?</label>
               <input type="text" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                placeholder="Quick lawn mow, tech help, pet sitting..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                placeholder="Quick lawn mow, tech help, pet sitting..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Category</label>
                 <select value={newTask.category} onChange={(e) => setNewTask({...newTask, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf">
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
                   <option value="tech">💻 Tech Help</option>
                   <option value="yard">🌿 Yard Work</option>
                   <option value="pets">🐾 Pet Care</option>
@@ -1193,7 +1236,7 @@ const Community = () => {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Priority</label>
                 <select value={newTask.urgency} onChange={(e) => setNewTask({...newTask, urgency: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf">
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
                   <option value="low">Low - Whenever</option>
                   <option value="medium">Medium - This Week</option>
                   <option value="high">High - ASAP</option>
@@ -1204,9 +1247,9 @@ const Community = () => {
               <label className="block text-sm font-medium text-stone-700 mb-1">Details</label>
               <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})}
                 rows="3" placeholder="Describe what you need, when, and any other details..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
-            <button onClick={handleCreateTask} className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors">
+            <button onClick={handleCreateTask} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
               Post Request
             </button>
           </div>
@@ -1230,7 +1273,7 @@ const Community = () => {
                     onClick={() => setNewListing({...newListing, listingType: type.value})}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border-2 ${
                       newListing.listingType === type.value 
-                        ? "border-leaf bg-leaf-pale text-stone-700" 
+                        ? "border-party bg-party-pale text-stone-700" 
                         : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
                     }`}
                   >
@@ -1243,7 +1286,7 @@ const Community = () => {
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Item Title</label>
               <input type="text" value={newListing.title} onChange={(e) => setNewListing({...newListing, title: e.target.value})}
-                placeholder="What are you selling/giving away?" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                placeholder="What are you selling/giving away?" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
 
             {/* Price - only show for selling */}
@@ -1251,7 +1294,7 @@ const Community = () => {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Price ($)</label>
                 <input type="number" value={newListing.price} onChange={(e) => setNewListing({...newListing, price: e.target.value})}
-                  placeholder="0" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                  placeholder="0" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
               </div>
             )}
 
@@ -1266,7 +1309,7 @@ const Community = () => {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Category</label>
                 <select value={newListing.category} onChange={(e) => setNewListing({...newListing, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf">
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
                   <option value="furniture">🪑 Furniture</option>
                   <option value="electronics">📱 Electronics</option>
                   <option value="sports">⚽ Sports & Outdoors</option>
@@ -1280,7 +1323,7 @@ const Community = () => {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Condition</label>
                 <select value={newListing.condition} onChange={(e) => setNewListing({...newListing, condition: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf">
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
                   <option value="new">New (unopened)</option>
                   <option value="excellent">Like New</option>
                   <option value="good">Good</option>
@@ -1294,7 +1337,7 @@ const Community = () => {
               <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
               <textarea value={newListing.description} onChange={(e) => setNewListing({...newListing, description: e.target.value})}
                 rows="3" placeholder="Describe the item, dimensions, any flaws, pickup details..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
 
             {/* Photo Upload */}
@@ -1313,7 +1356,7 @@ const Community = () => {
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg cursor-pointer hover:border-leaf hover:bg-leaf-pale transition-colors">
+                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg cursor-pointer hover:border-party hover:bg-party-pale transition-colors">
                     <span className="text-2xl text-stone-400">📷</span>
                     <span className="text-xs text-stone-500 mt-1">Add Photo</span>
                     <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
@@ -1323,7 +1366,7 @@ const Community = () => {
               </div>
             </div>
 
-            <button onClick={handleCreateListing} className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors">
+            <button onClick={handleCreateListing} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
               {newListing.listingType === "sell" ? `Post for $${newListing.price || '0'}` : 
                newListing.listingType === "free" ? "Post Free Item" : "Post Trade Listing"}
             </button>
@@ -1346,7 +1389,7 @@ const Community = () => {
               {/* Price & Type */}
               <div className="flex items-center justify-between">
                 {showListingModal.listingType === "sell" && (
-                  <span className="text-3xl font-bold text-leaf">${showListingModal.price}</span>
+                  <span className="text-3xl font-bold text-party">${showListingModal.price}</span>
                 )}
                 {showListingModal.listingType === "free" && (
                   <span className="text-2xl font-bold text-green-600">🎁 FREE</span>
@@ -1371,18 +1414,18 @@ const Community = () => {
               </div>
 
               <div className="flex items-center gap-2 text-sm text-stone-500">
-                <span className="font-semibold text-leaf">{showListingModal.interested}</span> neighbors interested
+                <span className="font-semibold text-party">{showListingModal.interested}</span> neighbors interested
               </div>
 
               {/* Action */}
-              <div className="bg-leaf-pale border border-leaf/30 rounded-lg p-4">
+              <div className="bg-party-pale border border-party/30 rounded-lg p-4">
                 <p className="text-stone-800 font-medium">🏠 Walk over to House #{showListingModal.houseNumber}</p>
                 <p className="text-sm text-stone-700 mt-2">Knock on their door or leave a note to discuss the item!</p>
               </div>
 
               <button 
                 onClick={() => { handleInterested(showListingModal.id); setShowListingModal(null); }}
-                className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors"
+                className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors"
               >
                 I'm Interested!
               </button>
@@ -1393,33 +1436,33 @@ const Community = () => {
         {/* New Helper Service Modal */}
         <Modal isOpen={showHelperModal} onClose={() => setShowHelperModal(false)} title="List Your Service">
           <div className="space-y-4">
-            <div className="bg-leaf-pale border border-leaf/30 rounded-lg p-3 text-sm text-stone-800">
+            <div className="bg-party-pale border border-party/30 rounded-lg p-3 text-sm text-stone-800">
               💼 Listing fee: <strong>$5/month</strong> — helps keep our community spam-free!
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Service Name</label>
               <input type="text" value={newHelper.title} onChange={(e) => setNewHelper({...newHelper, title: e.target.value})}
-                placeholder="Snow Removal, Lawn Mowing, Dog Walking..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                placeholder="Snow Removal, Lawn Mowing, Dog Walking..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Price</label>
                 <input type="text" value={newHelper.price} onChange={(e) => setNewHelper({...newHelper, price: e.target.value})}
-                  placeholder="$20/driveway, $15/hour..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                  placeholder="$20/driveway, $15/hour..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Availability</label>
                 <input type="text" value={newHelper.availability} onChange={(e) => setNewHelper({...newHelper, availability: e.target.value})}
-                  placeholder="Weekends, Year-round..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                  placeholder="Weekends, Year-round..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
               <textarea value={newHelper.description} onChange={(e) => setNewHelper({...newHelper, description: e.target.value})}
                 rows="3" placeholder="Describe your service, what's included, your experience..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-leaf/40 focus:border-leaf" />
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
             </div>
-            <button onClick={handleCreateHelper} className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors">
+            <button onClick={handleCreateHelper} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
               List Service ($5/month)
             </button>
           </div>
@@ -1432,13 +1475,13 @@ const Community = () => {
               <div className="text-4xl text-center">{getEventIcon(showDetailModal.type)}</div>
               <div className="text-center">
                 <p className="text-lg text-stone-600">📅 {showDetailModal.date} at {showDetailModal.time}</p>
-                <p className="text-sm text-leaf font-medium mt-1">🏠 Hosted by #{showDetailModal.houseNumber}</p>
+                <p className="text-sm text-party font-medium mt-1">🏠 Hosted by #{showDetailModal.houseNumber}</p>
               </div>
               <div className="bg-stone-50 rounded-lg p-4">
                 <p className="text-stone-700">{showDetailModal.description}</p>
               </div>
               <div className="flex items-center justify-center gap-2 text-sm text-stone-500">
-                <span className="font-semibold text-leaf">{showDetailModal.attendees}</span> neighbors are going
+                <span className="font-semibold text-party">{showDetailModal.attendees}</span> neighbors are going
               </div>
 
               {/* Partner Shop Items Section */}
@@ -1467,7 +1510,7 @@ const Community = () => {
                   </div>
                   <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
                     <span className="font-semibold text-stone-900">Total:</span>
-                    <span className="text-lg font-bold text-leaf">
+                    <span className="text-lg font-bold text-party">
                       ${showDetailModal.partnerShopItems.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)}
                     </span>
                   </div>
@@ -1496,7 +1539,7 @@ const Community = () => {
                   </div>
                   <div className="w-full bg-stone-200 rounded-full h-2.5 mb-2">
                     <div 
-                      className={`h-2.5 rounded-full transition-all ${showDetailModal.fundingRaised >= showDetailModal.fundingGoal ? "bg-green-500" : "bg-leaf"}`}
+                      className={`h-2.5 rounded-full transition-all ${showDetailModal.fundingRaised >= showDetailModal.fundingGoal ? "bg-green-500" : "bg-party"}`}
                       style={{ width: `${Math.min((showDetailModal.fundingRaised / showDetailModal.fundingGoal) * 100, 100)}%` }}
                     />
                   </div>
@@ -1506,7 +1549,7 @@ const Community = () => {
                     <div className="flex gap-2">
                       <button onClick={() => { handleChipIn(showDetailModal.id, 5); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$5</button>
                       <button onClick={() => { handleChipIn(showDetailModal.id, 10); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$10</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 25); }} className="flex-1 px-3 py-2 bg-leaf text-white rounded-lg text-sm hover:bg-leaf-dark transition-colors">$25</button>
+                      <button onClick={() => { handleChipIn(showDetailModal.id, 25); }} className="flex-1 px-3 py-2 bg-party text-white rounded-lg text-sm hover:bg-party-dark transition-colors">$25</button>
                       <button onClick={() => { handleChipIn(showDetailModal.id, 50); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$50</button>
                     </div>
                   )}
@@ -1516,7 +1559,7 @@ const Community = () => {
               <button 
                 onClick={() => { handleGoingToggle(showDetailModal.id); setShowDetailModal(null); }}
                 className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
-                  showDetailModal.going ? "bg-green-100 text-green-700" : "bg-leaf text-white hover:bg-leaf-dark"
+                  showDetailModal.going ? "bg-green-100 text-green-700" : "bg-party text-white hover:bg-party-dark"
                 }`}
               >
                 {showDetailModal.going ? "✓ You're Going!" : "I'm Going!"}
@@ -1531,15 +1574,15 @@ const Community = () => {
             <div className="space-y-4 text-center">
               <div className="text-6xl">{getServiceIcon(showContactModal.title)}</div>
               <h3 className="text-xl font-bold text-stone-900">{showContactModal.title}</h3>
-              <p className="text-2xl font-bold text-leaf">{showContactModal.price}</p>
-              <div className="bg-leaf-pale border border-leaf/30 rounded-lg p-4">
+              <p className="text-2xl font-bold text-party">{showContactModal.price}</p>
+              <div className="bg-party-pale border border-party/30 rounded-lg p-4">
                 <p className="text-stone-800 font-medium">🏠 Walk over to House #{showContactModal.houseNumber}</p>
                 <p className="text-sm text-stone-700 mt-2">Ring the doorbell or leave a note to arrange the service!</p>
               </div>
               <p className="text-stone-600 text-sm">
-                Happy Neighbor encourages in-person connections. Walking over is the best way to meet your neighbors and arrange services!
+                BlockParty encourages in-person connections. Walking over is the best way to meet your neighbors and arrange services!
               </p>
-              <button onClick={() => setShowContactModal(null)} className="w-full px-4 py-3 bg-leaf text-white rounded-lg font-semibold hover:bg-leaf-dark transition-colors">
+              <button onClick={() => setShowContactModal(null)} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
                 Got It!
               </button>
             </div>
