@@ -3398,29 +3398,230 @@ app.post('/api/community/check-returning', async (req, res) => {
   }
 });
 
-// Get community events for a street
+// Legacy community routes → hub data
 app.get('/api/community/:streetId/events', (req, res) => {
-  // Placeholder - would fetch from events table
-  res.json([
-    { id: 1, title: "Summer Block Party 🎉", date: "2024-07-15", time: "4:00 PM", host: "Sarah M.", description: "Annual summer cookout! Bring a dish to share.", attendees: 12, type: "party" },
-    { id: 2, title: "Neighborhood Garage Sale", date: "2024-06-22", time: "8:00 AM", host: "Multiple Homes", description: "Multi-family garage sale.", attendees: 8, type: "sale" },
-  ]);
+  try {
+    res.json(listHubEvents(req.params.streetId));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Get crowdfunding campaigns for a street
+// ============== BLOCK HUB API ==============
+
+const parseHubPayload = (row) => {
+  if (!row) return null;
+  try {
+    return { id: row.id, ...JSON.parse(row.payload_json) };
+  } catch {
+    return { id: row.id };
+  }
+};
+
+const listHubEvents = (streetId) =>
+  db.prepare('SELECT * FROM hub_events WHERE street_id = ? ORDER BY id DESC').all(String(streetId)).map(parseHubPayload);
+
+const listHubBoard = (streetId) =>
+  db.prepare('SELECT * FROM hub_board_posts WHERE street_id = ? ORDER BY id DESC').all(String(streetId)).map(parseHubPayload);
+
+const listHubNeighbors = (streetId) =>
+  db.prepare('SELECT * FROM hub_neighbors WHERE street_id = ? ORDER BY id DESC').all(String(streetId)).map(parseHubPayload);
+
+const getHubEvent = (streetId, eventId) =>
+  parseHubPayload(
+    db.prepare('SELECT * FROM hub_events WHERE street_id = ? AND id = ?').get(String(streetId), eventId)
+  );
+
+const getHubBoardPost = (streetId, postId) =>
+  parseHubPayload(
+    db.prepare('SELECT * FROM hub_board_posts WHERE street_id = ? AND id = ?').get(String(streetId), postId)
+  );
+
+const logHubInteraction = (streetId, entityType, entityId, actionType, payload) => {
+  db.prepare(
+    `INSERT INTO hub_interactions (street_id, entity_type, entity_id, action_type, payload_json)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(String(streetId), entityType, entityId, actionType, JSON.stringify(payload || {}));
+};
+
+app.get('/api/hub/:streetId', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    res.json({
+      events: listHubEvents(streetId),
+      boardPosts: listHubBoard(streetId),
+      neighbors: listHubNeighbors(streetId),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/events', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const payload = req.body || {};
+    const result = db.prepare(
+      'INSERT INTO hub_events (street_id, payload_json) VALUES (?, ?)'
+    ).run(streetId, JSON.stringify(payload));
+    const event = { id: result.lastInsertRowid, ...payload };
+    logHubInteraction(streetId, 'event', event.id, 'create', { title: payload.title });
+    res.json({ success: true, event });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/board', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const payload = req.body || {};
+    const result = db.prepare(
+      'INSERT INTO hub_board_posts (street_id, payload_json) VALUES (?, ?)'
+    ).run(streetId, JSON.stringify(payload));
+    const post = { id: result.lastInsertRowid, ...payload };
+    logHubInteraction(streetId, 'board', post.id, 'create', { type: payload.type, title: payload.title });
+    res.json({ success: true, post });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/neighbors', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const payload = req.body || {};
+    const result = db.prepare(
+      'INSERT INTO hub_neighbors (street_id, payload_json) VALUES (?, ?)'
+    ).run(streetId, JSON.stringify(payload));
+    const neighbor = { id: result.lastInsertRowid, ...payload };
+    logHubInteraction(streetId, 'neighbor', neighbor.id, 'create', { headline: payload.headline });
+    res.json({ success: true, neighbor });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/events/:eventId/chip-in', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const eventId = parseInt(req.params.eventId, 10);
+    const { amount, note, houseNumber } = req.body || {};
+    const amt = parseInt(amount, 10);
+    if (!amt || amt < 1) return res.status(400).json({ error: 'Valid amount required' });
+
+    const event = getHubEvent(streetId, eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const updated = {
+      ...event,
+      fundingRaised: (event.fundingRaised || 0) + amt,
+      fundingBackers: (event.fundingBackers || 0) + 1,
+    };
+    delete updated.id;
+    db.prepare('UPDATE hub_events SET payload_json = ? WHERE id = ?').run(JSON.stringify(updated), eventId);
+    logHubInteraction(streetId, 'event', eventId, 'chip_in', { amount: amt, note, houseNumber });
+
+    res.json({ success: true, event: { id: eventId, ...updated }, simulatedPayment: !stripe });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/events/:eventId/rsvp', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const eventId = parseInt(req.params.eventId, 10);
+    const { going, guestCount = 1, bringing, note } = req.body || {};
+
+    const event = getHubEvent(streetId, eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const wasGoing = !!event.going;
+    const delta = going ? (wasGoing ? 0 : guestCount) : (wasGoing ? -1 : 0);
+    const updated = {
+      ...event,
+      going: !!going,
+      attendees: Math.max(0, (event.attendees || 0) + delta),
+      lastRsvp: { guestCount, bringing, note, at: new Date().toISOString() },
+    };
+    delete updated.id;
+    db.prepare('UPDATE hub_events SET payload_json = ? WHERE id = ?').run(JSON.stringify(updated), eventId);
+    logHubInteraction(streetId, 'event', eventId, 'rsvp', { going, guestCount, bringing, note });
+
+    res.json({ success: true, event: { id: eventId, ...updated } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/board/:postId/respond', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const postId = parseInt(req.params.postId, 10);
+    const { type, message, houseNumber } = req.body || {};
+
+    const post = getHubBoardPost(streetId, postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const updated = { ...post };
+    if (type === 'ask') updated.responses = (post.responses || 0) + 1;
+    if (type === 'share') updated.interested = (post.interested || 0) + 1;
+    delete updated.id;
+    db.prepare('UPDATE hub_board_posts SET payload_json = ? WHERE id = ?').run(JSON.stringify(updated), postId);
+    logHubInteraction(streetId, 'board', postId, 'respond', { type, message, houseNumber });
+
+    res.json({ success: true, post: { id: postId, ...updated } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hub/:streetId/board/:postId/endorse', (req, res) => {
+  try {
+    const streetId = String(req.params.streetId);
+    const postId = parseInt(req.params.postId, 10);
+    const post = getHubBoardPost(streetId, postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.type !== 'recommend') return res.status(400).json({ error: 'Only tips can be endorsed' });
+
+    const updated = { ...post, endorsedBy: (post.endorsedBy || 0) + 1 };
+    delete updated.id;
+    db.prepare('UPDATE hub_board_posts SET payload_json = ? WHERE id = ?').run(JSON.stringify(updated), postId);
+    logHubInteraction(streetId, 'board', postId, 'endorse', req.body || {});
+
+    res.json({ success: true, post: { id: postId, ...updated } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Legacy
 app.get('/api/community/:streetId/crowdfunds', (req, res) => {
-  // Placeholder - would fetch from crowdfunds table
-  res.json([
-    { id: 1, title: "Street Holiday Lights", goal: 500, raised: 325, backers: 12, description: "Let's make our street sparkle!", deadline: "2024-11-15", status: "active" },
-  ]);
+  try {
+    const events = listHubEvents(req.params.streetId).filter((e) => e.needsFunding);
+    res.json(
+      events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        goal: e.fundingGoal,
+        raised: e.fundingRaised,
+        backers: e.fundingBackers,
+        description: e.fundingDescription,
+        status: e.fundingRaised >= e.fundingGoal ? 'funded' : 'active',
+      }))
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Get task board for a street
 app.get('/api/community/:streetId/tasks', (req, res) => {
-  // Placeholder - would fetch from tasks table
-  res.json([
-    { id: 1, title: "Help setting up new computer", category: "tech", poster: "Mary K.", urgency: "low", description: "Need help with new laptop", offers: 2 },
-  ]);
+  try {
+    res.json(listHubBoard(req.params.streetId).filter((p) => p.type === 'ask'));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ============== PAYMENT ENDPOINTS (STRIPE) ==============
@@ -4001,6 +4202,37 @@ db.exec(`
     phone TEXT NOT NULL,
     message TEXT NOT NULL,
     status TEXT DEFAULT 'queued',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS hub_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS hub_board_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS hub_neighbors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS hub_interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    street_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    action_type TEXT NOT NULL,
+    payload_json TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);

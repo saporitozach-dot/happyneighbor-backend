@@ -64,7 +64,7 @@ export function generatePartyPlan({ templateKey, guests, date, time, streetName 
     `RSVP and chip in on BlockParty. Hope to see you there!`;
 
   return {
-    title: `${template.title} 🎉`,
+    title: template.title,
     date: eventDate,
     time: eventTime,
     type: template.type,
@@ -86,8 +86,8 @@ export function generatePartyPlan({ templateKey, guests, date, time, streetName 
 }
 
 export const PARTY_TEMPLATES = [
-  { key: "summer", label: "Summer block party", icon: "☀️" },
-  { key: "cookout", label: "Neighborhood cookout", icon: "🍔" },
-  { key: "night_out", label: "National Night Out", icon: "🏘️" },
-  { key: "holiday", label: "Holiday gathering", icon: "🎄" },
+  { key: "summer", label: "Summer block party" },
+  { key: "cookout", label: "Neighborhood cookout" },
+  { key: "night_out", label: "National Night Out" },
+  { key: "holiday", label: "Holiday gathering" },
 ];

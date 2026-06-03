@@ -74,25 +74,31 @@ const Homepage = () => {
                   Built for HOAs &amp; close-knit blocks
                 </div>
                 <h1 className="hero-title font-display text-4xl sm:text-5xl lg:text-[3.5rem] font-bold mb-6 leading-[1.1] tracking-tight">
-                  Your block deserves a{" "}
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300">
-                    BlockParty
-                  </span>
+                Your block deserves{" "}
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300">
+                  BlockParty
+                </span>
                 </h1>
                 <p className="hero-subtitle text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
                   Plan parties, order local food to the curb, and meet the neighbors behind every door—your HOA&apos;s hub for a more vibrant community.
                 </p>
 
                 <form onSubmit={handleLookup} className="max-w-xl mx-auto">
-                  <div className="rounded-3xl p-2 bg-white/95 backdrop-blur-md shadow-card border border-white/80 flex flex-col sm:flex-row gap-2">
-                    <AddressAutocomplete
-                      value={address}
-                      onChange={(v) => { setAddress(v); setError(""); }}
-                      placeholder="123 Main Street, City, State"
-                      className="flex-1 !rounded-2xl !border-0 !bg-slate-50/80 !shadow-none focus:!ring-2 focus:!ring-indigo-400/40"
+                  <div className="rounded-3xl p-2.5 sm:p-2 bg-white/95 backdrop-blur-md shadow-card border border-white/80 flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-2">
+                    <div className="flex-1 min-w-0 w-full">
+                      <AddressAutocomplete
+                        value={address}
+                        onChange={(v) => { setAddress(v); setError(""); }}
+                        placeholder="123 Main Street, City, State"
+                        className="w-full !rounded-2xl !border-0 !bg-slate-50/80 !shadow-none !py-3.5 !h-12 sm:!h-11 focus:!ring-2 focus:!ring-indigo-400/40"
+                        disabled={loading}
+                      />
+                    </div>
+                    <button
+                      type="submit"
                       disabled={loading}
-                    />
-                    <button type="submit" disabled={loading} className="btn-party shrink-0 whitespace-nowrap !rounded-2xl sm:!rounded-full">
+                      className="btn-party w-full sm:w-auto shrink-0 whitespace-nowrap !rounded-2xl sm:!rounded-full !py-3.5 sm:!py-3 !px-6 !h-12 sm:!h-11 flex items-center justify-center !m-0"
+                    >
                       {loading ? (
                         <span className="flex items-center gap-2">
                           <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

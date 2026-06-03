@@ -4,6 +4,33 @@ import { Helmet } from "react-helmet-async";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import PartyPlannerModal from "../components/PartyPlannerModal";
+import BrandIcon from "../components/brand/BrandIcon";
+import HubIconMark from "../components/brand/HubIconMark";
+import HubCategoryChip from "../components/hub/HubCategoryChip";
+import HubHeader from "../components/hub/HubHeader";
+import HubTabBar from "../components/hub/HubTabBar";
+import HubOverview from "../components/hub/HubOverview";
+import HubEventsPanel from "../components/hub/HubEventsPanel";
+import HubBoardPanel from "../components/hub/HubBoardPanel";
+import HubNeighborsPanel from "../components/hub/HubNeighborsPanel";
+import HubBoardPostModal from "../components/hub/HubBoardPostModal";
+import HubNeighborModal, { HubNeighborContactModal } from "../components/hub/HubNeighborModal";
+import HubChipInModal from "../components/hub/HubChipInModal";
+import HubRsvpModal from "../components/hub/HubRsvpModal";
+import HubBoardDetailModal from "../components/hub/HubBoardDetailModal";
+import HubBoardRespondModal from "../components/hub/HubBoardRespondModal";
+import HubEndorseModal from "../components/hub/HubEndorseModal";
+import HubSuccessModal from "../components/hub/HubSuccessModal";
+import { DEMO_EVENTS, DEMO_BOARD_POSTS, DEMO_NEIGHBORS } from "../data/demoHubData";
+import * as hubApi from "../utils/hubApi";
+import {
+  HUB_TABS,
+  getEventTypeLabel,
+  getEventTypeIcon,
+  getServiceCategoryIcon,
+  getServiceCategoryLabel,
+  formatHouse,
+} from "../utils/hubUi";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://happyneighbor-api-production.up.railway.app/api";
 
@@ -14,10 +41,10 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
-        <div className="relative bg-white border border-stone-200 shadow-card max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white border border-slate-200 shadow-card rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-display text-xl font-semibold text-stone-900">{title}</h3>
-            <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-2xl">&times;</button>
+            <h3 className="font-display text-xl font-semibold text-slate-900">{title}</h3>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
           </div>
           {children}
         </div>
@@ -28,7 +55,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 const Community = () => {
   const { streetId } = useParams();
-  const [activeTab, setActiveTab] = useState("events");
+  const [activeTab, setActiveTab] = useState("home");
   const [street, setStreet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
@@ -38,12 +65,33 @@ const Community = () => {
   // Modal states
   const [showEventModal, setShowEventModal] = useState(false);
   const [showPartyPlanner, setShowPartyPlanner] = useState(false);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showHelperModal, setShowHelperModal] = useState(false);
-  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
+  const [showBoardModal, setShowBoardModal] = useState(false);
+  const [showNeighborOfferModal, setShowNeighborOfferModal] = useState(false);
+  const [neighborContact, setNeighborContact] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(null);
-  const [showContactModal, setShowContactModal] = useState(null);
-  const [showListingModal, setShowListingModal] = useState(null);
+  const [boardDraft, setBoardDraft] = useState({
+    type: "ask",
+    title: "",
+    description: "",
+    category: "other",
+    urgency: "low",
+    listingType: "sell",
+    price: "",
+  });
+  const [neighborDraft, setNeighborDraft] = useState({
+    headline: "",
+    description: "",
+    compensation: "",
+    availability: "",
+  });
+  const [chipInEvent, setChipInEvent] = useState(null);
+  const [rsvpEvent, setRsvpEvent] = useState(null);
+  const [boardDetailPost, setBoardDetailPost] = useState(null);
+  const [boardRespond, setBoardRespond] = useState(null);
+  const [endorsePost, setEndorsePost] = useState(null);
+  const [successModal, setSuccessModal] = useState(null);
+  const [hubSubmitting, setHubSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Form states
   const [newEvent, setNewEvent] = useState({ 
@@ -60,7 +108,6 @@ const Community = () => {
       id: 1,
       name: "Tony's Pizza",
       type: "pizza",
-      icon: "🍕",
       description: "Local favorite for block parties",
       items: [
         { id: 1, name: "Large Cheese Pizza", price: 18.99, serves: "8-10 people" },
@@ -74,7 +121,6 @@ const Community = () => {
       id: 2,
       name: "Sub Station",
       type: "subs",
-      icon: "🥪",
       description: "Fresh subs for any gathering",
       items: [
         { id: 6, name: "Party Sub (6 feet)", price: 89.99, serves: "30-40 people" },
@@ -88,7 +134,6 @@ const Community = () => {
       id: 3,
       name: "BBQ Express",
       type: "bbq",
-      icon: "🍖",
       description: "Catering for neighborhood events",
       items: [
         { id: 11, name: "BBQ Platter (feeds 20)", price: 149.99, serves: "20 people" },
@@ -101,7 +146,6 @@ const Community = () => {
       id: 4,
       name: "Sweet Treats Bakery",
       type: "desserts",
-      icon: "🍰",
       description: "Desserts for special occasions",
       items: [
         { id: 15, name: "Cookie Platter (3 dozen)", price: 32.99, serves: "18-24 people" },
@@ -114,7 +158,6 @@ const Community = () => {
       id: 5,
       name: "Beverage Express",
       type: "drinks",
-      icon: "🥤",
       description: "Drinks for your event",
       items: [
         { id: 19, name: "Soda Pack (48 cans)", price: 24.99, serves: "24-30 people" },
@@ -124,110 +167,9 @@ const Community = () => {
       ]
     }
   ];
-  const [newTask, setNewTask] = useState({ title: "", description: "", category: "other", urgency: "low" });
-  const [newHelper, setNewHelper] = useState({ title: "", price: "", description: "", availability: "" });
-  const [newListing, setNewListing] = useState({ 
-    title: "", price: "", description: "", category: "other", condition: "good",
-    listingType: "sell", photos: [], photoPreview: null
-  });
-
-  // Data states - Events now include optional crowdfunding
-  const [events, setEvents] = useState([
-    { 
-      id: 1, title: "Summer Block Party 🎉", date: "2024-07-15", time: "4:00 PM", houseNumber: "247", 
-      description: "Annual summer cookout! Bring a dish to share. We'll have games for kids, a bounce house, and live music from a local band. BYOB but we'll have lemonade and water for everyone!", 
-      attendees: 12, type: "party", going: false,
-      // Crowdfunding fields
-      needsFunding: true, fundingGoal: 300, fundingRaised: 185, fundingBackers: 9,
-      fundingDescription: "Bounce house rental, DJ, decorations, and drinks for everyone!"
-    },
-    { 
-      id: 2, title: "Neighborhood Garage Sale", date: "2024-06-22", time: "8:00 AM", houseNumber: "Multiple", 
-      description: "Multi-family garage sale spanning 8 houses. Maps available at corner of Oak & Main. Rain date: June 29th.", 
-      attendees: 8, type: "sale", going: false,
-      needsFunding: false
-    },
-    { 
-      id: 3, title: "Kids Bike Parade 🚲", date: "2024-07-04", time: "10:00 AM", houseNumber: "189", 
-      description: "Decorate your bikes and join us for a patriotic parade down the block! We'll end at the park for popsicles. All ages welcome!", 
-      attendees: 15, type: "activity", going: false,
-      needsFunding: true, fundingGoal: 100, fundingRaised: 100, fundingBackers: 8,
-      fundingDescription: "Popsicles and patriotic decorations for all the kids!"
-    },
-    { 
-      id: 4, title: "Holiday Block Party", date: "2024-12-15", time: "5:00 PM", houseNumber: "312", 
-      description: "Hot cocoa, caroling, and holiday cheer! Bring your favorite holiday treats to share.", 
-      attendees: 6, type: "party", going: false,
-      needsFunding: true, fundingGoal: 250, fundingRaised: 85, fundingBackers: 4,
-      fundingDescription: "Tents, decorations, hot cocoa station for our annual holiday gathering!"
-    },
-    { 
-      id: 5, title: "Back-to-School Ice Cream Social", date: "2024-08-20", time: "3:00 PM", houseNumber: "423", 
-      description: "Welcome families back with an ice cream truck visit! Kids eat free, adults $2 suggested.", 
-      attendees: 10, type: "activity", going: false,
-      needsFunding: true, fundingGoal: 150, fundingRaised: 75, fundingBackers: 5,
-      fundingDescription: "Ice cream truck rental for the neighborhood kids!"
-    },
-  ]);
-
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Help setting up new computer", category: "tech", houseNumber: "267", urgency: "low", description: "Need help transferring files from old laptop and setting up email on new one. Happy to provide snacks and coffee!", offers: 2 },
-    { id: 2, title: "Quick lawn mow needed", category: "yard", houseNumber: "134", urgency: "medium", description: "Going on vacation Saturday morning, need someone to mow lawn once while we're gone (back July 20). Will pay!", offers: 1 },
-    { id: 3, title: "Pet sitting (2 cats) July 10-15", category: "pets", houseNumber: "389", urgency: "low", description: "Feed twice daily, scoop litter, give some love. Happy to return the favor anytime! Keys provided.", offers: 3 },
-  ]);
-
-  const [localHelpers, setLocalHelpers] = useState([
-    { id: 1, title: "Snow Removal", houseNumber: "156", price: "$20/driveway", description: "Will shovel your driveway and walkway after snowfall. Salt included! Usually done by 8am.", availability: "Winter season", rating: 4.8, reviews: 12 },
-    { id: 2, title: "Lawn Mowing", houseNumber: "423", price: "$25/mow", description: "Weekly or one-time mowing. I have my own equipment. Edging included.", availability: "Spring-Fall", rating: 5.0, reviews: 8 },
-    { id: 3, title: "Dog Walking", houseNumber: "267", price: "$15/walk", description: "30-minute walks, flexible scheduling. Love all dogs! Can do multiple dogs from same household.", availability: "Year-round", rating: 4.9, reviews: 15 },
-    { id: 4, title: "Tech Support", houseNumber: "312", price: "$30/hour", description: "Computer setup, WiFi issues, phone help, smart home devices. Patient with all skill levels!", availability: "Evenings & weekends", rating: 5.0, reviews: 6 },
-  ]);
-
-  // Marketplace listings
-  const [marketplaceListings, setMarketplaceListings] = useState([
-    { 
-      id: 1, title: "Vintage Wooden Desk", price: 150, houseNumber: "247", 
-      description: "Beautiful solid oak desk from the 1970s. Some wear but very sturdy. Great for home office. Dimensions: 48\" x 24\" x 30\".", 
-      category: "furniture", condition: "good", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400"],
-      postedDate: "2024-06-15", interested: 3
-    },
-    { 
-      id: 2, title: "Kids Bike - 20\"", price: 45, houseNumber: "189", 
-      description: "Outgrew it! Blue Schwinn, works great. Minor scratches. Comes with training wheels if needed.", 
-      category: "sports", condition: "good", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400"],
-      postedDate: "2024-06-18", interested: 5
-    },
-    { 
-      id: 3, title: "Moving Boxes - FREE", price: 0, houseNumber: "312", 
-      description: "About 20 assorted moving boxes. Various sizes. First come first served - grab them from the driveway!", 
-      category: "free", condition: "used", listingType: "free",
-      photos: [],
-      postedDate: "2024-06-20", interested: 2
-    },
-    { 
-      id: 4, title: "Lawn Mower", price: 0, houseNumber: "423", 
-      description: "Honda self-propelled mower. Looking to borrow a pressure washer in exchange for a weekend. Or $200 to buy.", 
-      category: "outdoor", condition: "excellent", listingType: "trade",
-      photos: ["https://images.unsplash.com/photo-1590212151175-e58edd96185b?w=400"],
-      postedDate: "2024-06-19", interested: 1
-    },
-    { 
-      id: 5, title: "Baby Crib + Mattress", price: 75, houseNumber: "156", 
-      description: "Graco crib in excellent condition, barely used. Includes waterproof mattress. Non-smoking home.", 
-      category: "baby", condition: "excellent", listingType: "sell",
-      photos: ["https://images.unsplash.com/photo-1586105449897-20b5efeb3233?w=400"],
-      postedDate: "2024-06-21", interested: 4
-    },
-    { 
-      id: 6, title: "Garden Tools Bundle", price: 35, houseNumber: "267", 
-      description: "Rake, shovel, hoe, and hand tools. Moving to a condo - don't need them anymore!", 
-      category: "outdoor", condition: "good", listingType: "sell",
-      photos: [],
-      postedDate: "2024-06-17", interested: 2
-    },
-  ]);
+  const [events, setEvents] = useState(DEMO_EVENTS);
+  const [boardPosts, setBoardPosts] = useState(DEMO_BOARD_POSTS);
+  const [neighbors, setNeighbors] = useState(DEMO_NEIGHBORS);
 
   const isDemo = streetId === "demo";
 
@@ -235,6 +177,23 @@ const Community = () => {
     fetchStreetData();
     checkVerification();
   }, [streetId]);
+
+  useEffect(() => {
+    if (isVerified && streetId) loadHubFromApi();
+  }, [isVerified, streetId]);
+
+  const loadHubFromApi = async () => {
+    const result = await hubApi.fetchHubData(streetId);
+    if (!result.ok || !result.data) return;
+    const { events: apiEvents, boardPosts: apiBoard, neighbors: apiNeighbors } = result.data;
+    if (apiEvents?.length) setEvents(apiEvents);
+    if (apiBoard?.length) setBoardPosts(apiBoard);
+    if (apiNeighbors?.length) setNeighbors(apiNeighbors);
+  };
+
+  const showSuccess = (title, message, detail, actionLabel, onAction) => {
+    setSuccessModal({ title, message, detail, actionLabel, onAction });
+  };
 
   const fetchStreetData = async () => {
     // Demo mode - use sample street data
@@ -314,7 +273,6 @@ const Community = () => {
     const newItem = {
       shopId,
       shopName: shop.name,
-      shopIcon: shop.icon,
       itemId: item.id,
       itemName: item.name,
       price: item.price,
@@ -345,9 +303,8 @@ const Community = () => {
 
   const pizzaPartnerShops = partnerShops.filter((shop) => shop.type === "pizza");
 
-  const handlePublishFromPlanner = (planned) => {
-    const event = {
-      id: Date.now(),
+  const handlePublishFromPlanner = async (planned) => {
+    const eventPayload = {
       ...planned,
       houseNumber: "Your House",
       attendees: 1,
@@ -356,188 +313,234 @@ const Community = () => {
       fundingRaised: 0,
       fundingBackers: 0,
     };
+    const result = await hubApi.createHubEvent(streetId, eventPayload);
+    const event = result.ok && result.data?.event
+      ? result.data.event
+      : { id: Date.now(), ...eventPayload };
     setEvents([event, ...events]);
     setActiveTab("events");
+    showSuccess(
+      "Block party planned",
+      "Your event is live on the hub. Neighbors can RSVP and chip in.",
+      planned.title,
+      "View event",
+      () => {
+        setSuccessModal(null);
+        setShowDetailModal(event);
+      }
+    );
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     if (!newEvent.title || !newEvent.date || !newEvent.time) {
-      alert("Please fill in title, date, and time");
+      setFormError("Please fill in title, date, and time");
       return;
     }
     if (newEvent.needsFunding && !newEvent.fundingGoal) {
-      alert("Please enter a funding goal amount");
+      setFormError("Please enter a funding goal amount");
       return;
     }
-    const event = {
-      id: Date.now(),
+    setFormError("");
+    setHubSubmitting(true);
+    const eventPayload = {
       ...newEvent,
       houseNumber: "Your House",
       attendees: 1,
       going: true,
-      // Initialize funding if enabled
-      fundingGoal: newEvent.needsFunding ? parseInt(newEvent.fundingGoal) : 0,
+      fundingGoal: newEvent.needsFunding ? parseInt(newEvent.fundingGoal, 10) : 0,
       fundingRaised: 0,
-      fundingBackers: 0
+      fundingBackers: 0,
     };
+    const result = await hubApi.createHubEvent(streetId, eventPayload);
+    const event = result.ok && result.data?.event
+      ? result.data.event
+      : { id: Date.now(), ...eventPayload };
     setEvents([event, ...events]);
-    setNewEvent({ title: "", date: "", time: "", description: "", type: "party", needsFunding: false, fundingGoal: "", fundingDescription: "", partnerShopItems: [] });
+    setNewEvent({
+      title: "",
+      date: "",
+      time: "",
+      description: "",
+      type: "party",
+      needsFunding: false,
+      fundingGoal: "",
+      fundingDescription: "",
+      partnerShopItems: [],
+    });
     setShowPartnerShops(false);
     setSelectedShop(null);
     setShowEventModal(false);
+    setHubSubmitting(false);
+    showSuccess("Event posted", "Neighbors on your block can see it and RSVP.", event.title);
   };
 
-  const handleGoingToggle = (eventId) => {
-    setEvents(events.map(e => {
-      if (e.id === eventId) {
-        return {
-          ...e,
-          going: !e.going,
-          attendees: e.going ? e.attendees - 1 : e.attendees + 1
-        };
-      }
-      return e;
-    }));
-  };
+  const resetBoardDraft = () =>
+    setBoardDraft({
+      type: "ask",
+      title: "",
+      description: "",
+      category: "other",
+      urgency: "low",
+      listingType: "sell",
+      price: "",
+    });
 
-  const handleCreateTask = () => {
-    if (!newTask.title || !newTask.description) {
-      alert("Please fill in title and description");
+  const handleCreateBoardPost = async () => {
+    if (!boardDraft.title?.trim() || !boardDraft.description?.trim()) {
+      setFormError("Please add a title and description");
       return;
     }
-    const task = {
-      id: Date.now(),
-      ...newTask,
+    if (boardDraft.type === "share" && boardDraft.listingType === "sell" && !boardDraft.price) {
+      setFormError("Please enter a price for items you're selling");
+      return;
+    }
+    setFormError("");
+    setHubSubmitting(true);
+    const base = {
+      title: boardDraft.title.trim(),
+      description: boardDraft.description.trim(),
       houseNumber: "Your House",
-      offers: 0
     };
-    setTasks([task, ...tasks]);
-    setNewTask({ title: "", description: "", category: "other", urgency: "low" });
-    setShowTaskModal(false);
-  };
-
-  const handleOfferHelp = (taskId) => {
-    setTasks(tasks.map(t => {
-      if (t.id === taskId) {
-        return { ...t, offers: t.offers + 1 };
-      }
-      return t;
-    }));
-    alert("Thanks for offering to help! Walk over to their house to coordinate. 🏠");
-  };
-
-  const handleChipIn = (eventId, amount) => {
-    setEvents(events.map(e => {
-      if (e.id === eventId) {
-        const newRaised = (e.fundingRaised || 0) + amount;
-        return {
-          ...e,
-          fundingRaised: newRaised,
-          fundingBackers: (e.fundingBackers || 0) + 1
-        };
-      }
-      return e;
-    }));
-    alert(`Thanks for chipping in $${amount}! 🎉`);
-  };
-
-  const handleCreateHelper = () => {
-    if (!newHelper.title || !newHelper.price || !newHelper.description) {
-      alert("Please fill in service name, price, and description");
-      return;
-    }
-    const helper = {
-      id: Date.now(),
-      ...newHelper,
-      houseNumber: "Your House",
-      rating: 5.0,
-      reviews: 0
-    };
-    setLocalHelpers([helper, ...localHelpers]);
-    setNewHelper({ title: "", price: "", description: "", availability: "" });
-    setShowHelperModal(false);
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = { tech: "💻", yard: "🌿", pets: "🐾", moving: "📦", errands: "🏃", other: "✨" };
-    return icons[category] || "✨";
-  };
-
-  const getEventIcon = (type) => {
-    const icons = { party: "🎉", sale: "🏷️", activity: "🎯", meeting: "📋", other: "📅" };
-    return icons[type] || "📅";
-  };
-
-  const getServiceIcon = (title) => {
-    const lower = title.toLowerCase();
-    if (lower.includes("snow")) return "❄️";
-    if (lower.includes("lawn") || lower.includes("yard")) return "🌿";
-    if (lower.includes("dog") || lower.includes("pet")) return "🐕";
-    if (lower.includes("tech") || lower.includes("computer")) return "💻";
-    return "🔧";
-  };
-
-  const getMarketplaceIcon = (category) => {
-    const icons = { 
-      furniture: "🪑", electronics: "📱", sports: "⚽", outdoor: "🌿", 
-      baby: "👶", clothing: "👕", books: "📚", free: "🎁", other: "📦" 
-    };
-    return icons[category] || "📦";
-  };
-
-  const getConditionBadge = (condition) => {
-    const badges = {
-      "new": { text: "New", class: "bg-green-100 text-green-700" },
-      "excellent": { text: "Like New", class: "bg-blue-100 text-blue-700" },
-      "good": { text: "Good", class: "bg-yellow-100 text-yellow-700" },
-      "fair": { text: "Fair", class: "bg-stone-100 text-stone-700" },
-      "used": { text: "Used", class: "bg-stone-100 text-stone-700" }
-    };
-    return badges[condition] || badges["good"];
-  };
-
-  const handleCreateListing = () => {
-    if (!newListing.title || !newListing.description) {
-      alert("Please fill in title and description");
-      return;
-    }
-    if (newListing.listingType === "sell" && !newListing.price) {
-      alert("Please enter a price for items you're selling");
-      return;
-    }
-    const listing = {
-      id: Date.now(),
-      ...newListing,
-      price: newListing.listingType === "free" ? 0 : parseInt(newListing.price) || 0,
-      houseNumber: "Your House",
-      postedDate: new Date().toISOString().split('T')[0],
-      interested: 0,
-      photos: newListing.photoPreview ? [newListing.photoPreview] : []
-    };
-    setMarketplaceListings([listing, ...marketplaceListings]);
-    setNewListing({ title: "", price: "", description: "", category: "other", condition: "good", listingType: "sell", photos: [], photoPreview: null });
-    setShowMarketplaceModal(false);
-  };
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewListing({ ...newListing, photoPreview: reader.result });
+    let postPayload;
+    if (boardDraft.type === "ask") {
+      postPayload = { ...base, type: "ask", category: boardDraft.category, urgency: boardDraft.urgency, responses: 0 };
+    } else if (boardDraft.type === "share") {
+      postPayload = {
+        ...base,
+        type: "share",
+        listingType: boardDraft.listingType,
+        category: boardDraft.listingType === "free" ? "free" : "other",
+        price: boardDraft.listingType === "sell" ? parseInt(boardDraft.price, 10) || 0 : 0,
+        interested: 0,
       };
-      reader.readAsDataURL(file);
+    } else {
+      postPayload = { ...base, type: "recommend", endorsedBy: 1 };
     }
+    const result = await hubApi.createHubBoardPost(streetId, postPayload);
+    const post = result.ok && result.data?.post ? result.data.post : { id: Date.now(), ...postPayload };
+    setBoardPosts([post, ...boardPosts]);
+    resetBoardDraft();
+    setShowBoardModal(false);
+    setHubSubmitting(false);
+    setActiveTab("board");
+    showSuccess("Posted to the block board", "Neighbors can respond and walk over to coordinate.", post.title);
   };
 
-  const handleInterested = (listingId) => {
-    setMarketplaceListings(marketplaceListings.map(l => {
-      if (l.id === listingId) {
-        return { ...l, interested: l.interested + 1 };
-      }
-      return l;
-    }));
-    alert("Great! Walk over to their house to discuss. 🏠");
+  const openBoardRespond = (post, type) => {
+    setBoardDetailPost(null);
+    setBoardRespond({ post, type });
+  };
+
+  const handleBoardRespondSubmit = async ({ message, houseNumber, type }) => {
+    if (!boardRespond?.post) return;
+    setHubSubmitting(true);
+    const { post } = boardRespond;
+    const result = await hubApi.respondToBoardPost(streetId, post.id, { type, message, houseNumber });
+    const updated = result.ok && result.data?.post
+      ? result.data.post
+      : {
+          ...post,
+          ...(type === "ask"
+            ? { responses: (post.responses || 0) + 1 }
+            : { interested: (post.interested || 0) + 1 }),
+        };
+    setBoardPosts(boardPosts.map((p) => (p.id === post.id ? updated : p)));
+    setBoardRespond(null);
+    setHubSubmitting(false);
+    showSuccess(
+      type === "ask" ? "Offer sent" : "Interest sent",
+      `Your message is logged. Walk over to ${formatHouse(post.houseNumber)} to finish up in person.`,
+      message || "No message added"
+    );
+  };
+
+  const handleEndorseSubmit = async () => {
+    if (!endorsePost) return;
+    setHubSubmitting(true);
+    const result = await hubApi.endorseBoardPost(streetId, endorsePost.id, {});
+    const updated = result.ok && result.data?.post
+      ? result.data.post
+      : { ...endorsePost, endorsedBy: (endorsePost.endorsedBy || 0) + 1 };
+    setBoardPosts(boardPosts.map((p) => (p.id === endorsePost.id ? updated : p)));
+    setEndorsePost(null);
+    setHubSubmitting(false);
+    showSuccess("Tip endorsed", "Your block will see this recommendation.", endorsePost.title);
+  };
+
+  const handleCreateNeighborOffer = async () => {
+    if (!neighborDraft.headline?.trim() || !neighborDraft.description?.trim()) {
+      setFormError("Please add what you offer and a short description");
+      return;
+    }
+    setFormError("");
+    setHubSubmitting(true);
+    const payload = {
+      headline: neighborDraft.headline.trim(),
+      description: neighborDraft.description.trim(),
+      houseNumber: "Your House",
+      compensation: neighborDraft.compensation || "Coordinate in person",
+      availability: neighborDraft.availability || "Flexible",
+      skillIcon: getServiceCategoryIcon(neighborDraft.headline),
+      endorsements: 0,
+    };
+    const result = await hubApi.createHubNeighbor(streetId, payload);
+    const entry = result.ok && result.data?.neighbor ? result.data.neighbor : { id: Date.now(), ...payload };
+    setNeighbors([entry, ...neighbors]);
+    setNeighborDraft({ headline: "", description: "", compensation: "", availability: "" });
+    setShowNeighborOfferModal(false);
+    setHubSubmitting(false);
+    setActiveTab("neighbors");
+    showSuccess("Skill listed", "Neighbors can say hello at your house when they need help.", entry.headline);
+  };
+
+  const handleChipInSubmit = async ({ amount, note, houseNumber }) => {
+    if (!chipInEvent) return;
+    setHubSubmitting(true);
+    const result = await hubApi.chipInToEvent(streetId, chipInEvent.id, { amount, note, houseNumber });
+    const updated = result.ok && result.data?.event
+      ? result.data.event
+      : {
+          ...chipInEvent,
+          fundingRaised: (chipInEvent.fundingRaised || 0) + amount,
+          fundingBackers: (chipInEvent.fundingBackers || 0) + 1,
+        };
+    setEvents(events.map((e) => (e.id === chipInEvent.id ? updated : e)));
+    if (showDetailModal?.id === chipInEvent.id) setShowDetailModal(updated);
+    setChipInEvent(null);
+    setHubSubmitting(false);
+    const apiNote = result.ok ? " Saved to your block hub." : " Saved on this device (start the API to persist).";
+    showSuccess(
+      `Chipped in $${amount}`,
+      `Thank you for supporting ${chipInEvent.title}.${apiNote}`,
+      note || undefined
+    );
+  };
+
+  const handleRsvpSubmit = async ({ going, guestCount, bringing, note }) => {
+    if (!rsvpEvent) return;
+    setHubSubmitting(true);
+    const result = await hubApi.rsvpToEvent(streetId, rsvpEvent.id, { going, guestCount, bringing, note });
+    const updated = result.ok && result.data?.event
+      ? result.data.event
+      : {
+          ...rsvpEvent,
+          going: !!going,
+          attendees: going
+            ? rsvpEvent.going
+              ? rsvpEvent.attendees
+              : rsvpEvent.attendees + (guestCount || 1)
+            : Math.max(0, rsvpEvent.attendees - 1),
+        };
+    setEvents(events.map((e) => (e.id === rsvpEvent.id ? updated : e)));
+    if (showDetailModal?.id === rsvpEvent.id) setShowDetailModal(updated);
+    setRsvpEvent(null);
+    setHubSubmitting(false);
+    showSuccess(
+      going ? "You're going" : "RSVP updated",
+      going
+        ? `You're on the list for ${rsvpEvent.title}.${bringing ? ` Bringing: ${bringing}.` : ""}`
+        : "You've been removed from the headcount."
+    );
   };
 
   if (loading) {
@@ -561,10 +564,8 @@ const Community = () => {
             <div className="max-w-md w-full">
               <div className="glass-card p-8 lg:p-10 text-center">
                 <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-party/20">
-                    <svg className="w-8 h-8 text-party" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
+                  <div className="hub-icon-mark w-16 h-16 mx-auto">
+                    <BrandIcon name="lock" size={32} className="text-indigo-600" />
                   </div>
                 </div>
 
@@ -631,355 +632,77 @@ const Community = () => {
       <div className="min-h-screen flex flex-col site-surface">
         <Nav />
 
-        {/* Header */}
-        <div className="hero-bg relative border-b border-white/10 overflow-hidden text-white">
-          <div className="liquid-blob w-64 h-64 bg-violet-400 top-0 right-10 opacity-40" />
-          <div className="relative w-full max-w-6xl mx-auto px-5 lg:px-8 py-10">
-            <div className="flex items-center gap-3 mb-3">
-              <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full ${isDemo ? "bg-white/20 text-white border border-white/30" : "bg-emerald-400/20 text-emerald-100 border border-emerald-400/40"}`}>
-                {isDemo ? "Demo block" : "Verified neighbor"}
-              </span>
-            </div>
-            <h1 className="font-display text-3xl md:text-4xl font-bold text-white mb-1">{street?.name} Block Hub</h1>
-            <p className="text-slate-300">{street?.city}, {street?.state}</p>
-            <p className="text-slate-400 text-sm mt-4 max-w-xl">
-              Plan parties, order local food, and connect with neighbors on your block.
-            </p>
+        {isDemo && (
+          <div className="bg-slate-900 text-slate-200 text-center text-xs sm:text-sm py-2.5 px-4 border-b border-slate-700/80">
+            <BrandIcon name="block-mark" size={14} className="inline-block text-indigo-300 mr-1.5 align-[-2px]" />
+            Preview hub with sample data.{" "}
+            <Link to="/register-block" className="text-indigo-300 hover:text-white underline underline-offset-2">
+              Register your block
+            </Link>
           </div>
-        </div>
+        )}
 
-        {/* Tabs */}
-        <div className="bg-white/90 backdrop-blur border-b border-slate-200 sticky top-[4.25rem] z-40">
-          <div className="w-full max-w-6xl mx-auto px-5 lg:px-8">
-            <div className="flex gap-1 overflow-x-auto">
-              {[
-                { id: "events", label: "Events & Fundraising", icon: "📅" },
-                { id: "marketplace", label: "Marketplace", icon: "🛒" },
-                { id: "tasks", label: "Task Board", icon: "🤝" },
-                { id: "helpers", label: "Local Helpers", icon: "⭐" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-5 py-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                    activeTab === tab.id
-                      ? "border-party text-party"
-                      : "border-transparent text-stone-600 hover:text-party hover:border-stone-200"
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>{tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <HubHeader
+          street={street}
+          isDemo={isDemo}
+          eventCount={events.length}
+          boardCount={boardPosts.length}
+          neighborCount={neighbors.length}
+        />
+        <HubTabBar tabs={HUB_TABS} activeId={activeTab} onChange={setActiveTab} />
 
-        {/* Content */}
-        <main className="flex-1 w-full max-w-[90rem] mx-auto px-6 lg:px-12 xl:px-16 py-8">
-          
-          {/* Events Tab */}
+        <main className="flex-1 w-full max-w-6xl mx-auto px-5 lg:px-8 py-8 lg:py-10">
+          {activeTab === "home" && (
+            <HubOverview
+              events={events}
+              boardPosts={boardPosts}
+              neighbors={neighbors}
+              onTabChange={setActiveTab}
+              onPlanParty={() => setShowPartyPlanner(true)}
+              onPostBoard={() => {
+                setFormError("");
+                setShowBoardModal(true);
+              }}
+              onViewEvent={setShowDetailModal}
+              onViewPost={setBoardDetailPost}
+            />
+          )}
+
           {activeTab === "events" && (
-            <div>
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-                <div>
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">Events & Fundraising</h2>
-                  <p className="text-stone-500 text-sm mt-1">
-                    Plan a block party in minutes with AI, order pizza, and let neighbors chip in.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPartyPlanner(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium hover:opacity-95 transition-all flex items-center gap-2"
-                  >
-                    ✨ Plan block party
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowEventModal(true)}
-                    className="px-4 py-2 border border-stone-300 text-stone-800 rounded-lg font-medium hover:bg-stone-50 transition-all"
-                  >
-                    + Manual event
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-warm-100 border border-stone-200 rounded-xl p-4 mb-6">
-                <p className="text-sm text-stone-700 flex items-center gap-2">
-                  <span>💡</span>
-                  <span>Need funding for your event? Enable crowdfunding when posting to let neighbors chip in for supplies, rentals, and more!</span>
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {events.map((event) => {
-                  const isFunded = event.needsFunding && event.fundingRaised >= event.fundingGoal;
-                  const fundingPercent = event.needsFunding ? Math.min((event.fundingRaised / event.fundingGoal) * 100, 100) : 0;
-                  
-                  return (
-                    <div key={event.id} className="glass-card overflow-hidden hover:shadow-cardHover transition-all duration-300 flex flex-col p-0">
-                      <div className="p-5 flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="text-3xl">{getEventIcon(event.type)}</span>
-                          <div className="flex items-center gap-2">
-                            {event.needsFunding && (
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${isFunded ? "bg-green-100 text-green-700" : "bg-warm-100 text-stone-700"}`}>
-                                {isFunded ? "💰 Funded!" : "💰 Raising funds"}
-                              </span>
-                            )}
-                            <span className="text-xs font-medium text-party bg-party-pale px-2 py-1 rounded-full">{event.attendees} going</span>
-                          </div>
-                        </div>
-                        <h3 className="font-bold text-stone-900 text-lg mb-2">{event.title}</h3>
-                        <p className="text-sm text-stone-600 mb-3 line-clamp-2">{event.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-stone-500">
-                          <span>📅 {event.date}</span>
-                          <span>🕓 {event.time}</span>
-                        </div>
-                        {event.partnerShopItems && event.partnerShopItems.length > 0 && (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-blue-600 font-medium">
-                            <span>🍕</span>
-                            <span>Food & drinks ordered</span>
-                          </div>
-                        )}
-                        <p className="text-xs text-party font-medium mt-3">🏠 Posted by #{event.houseNumber}</p>
-
-                        {/* Crowdfunding Section */}
-                        {event.needsFunding && (
-                          <div className="mt-4 pt-4 border-t border-stone-100">
-                            <div className="flex justify-between text-xs mb-1.5">
-                              <span className="font-semibold text-stone-700">${event.fundingRaised || 0} raised</span>
-                              <span className="text-stone-500">of ${event.fundingGoal} goal</span>
-                            </div>
-                            <div className="w-full bg-stone-200 rounded-full h-2 mb-2">
-                              <div 
-                                className={`h-2 rounded-full transition-all ${isFunded ? "bg-green-500" : "bg-party"}`}
-                                style={{ width: `${fundingPercent}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-stone-500">{event.fundingBackers || 0} neighbors chipped in</p>
-                            
-                            {!isFunded && (
-                              <div className="flex gap-2 mt-3">
-                                <button onClick={() => handleChipIn(event.id, 5)} className="flex-1 px-2 py-1.5 bg-stone-100 text-stone-700 rounded-lg text-xs hover:bg-stone-200 transition-colors">$5</button>
-                                <button onClick={() => handleChipIn(event.id, 10)} className="flex-1 px-2 py-1.5 bg-stone-100 text-stone-700 rounded-lg text-xs hover:bg-stone-200 transition-colors">$10</button>
-                                <button onClick={() => handleChipIn(event.id, 25)} className="flex-1 px-2 py-1.5 bg-party text-white rounded-lg text-xs hover:bg-party-dark transition-colors">$25</button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="bg-stone-50 px-5 py-3 flex justify-between items-center border-t border-stone-100">
-                        <button onClick={() => setShowDetailModal(event)} className="text-party font-medium text-sm hover:underline">View Details</button>
-                        <button 
-                          onClick={() => handleGoingToggle(event.id)}
-                          className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-                            event.going ? "bg-green-100 text-green-700" : "bg-party text-white hover:bg-party-dark"
-                          }`}
-                        >
-                          {event.going ? "✓ Going!" : "I'm Going!"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <HubEventsPanel
+              events={events}
+              onPlanParty={() => setShowPartyPlanner(true)}
+              onManualEvent={() => {
+                setFormError("");
+                setShowEventModal(true);
+              }}
+              onViewDetail={setShowDetailModal}
+              onOpenRsvp={setRsvpEvent}
+              onOpenChipIn={setChipInEvent}
+            />
           )}
 
-          {/* Marketplace Tab */}
-          {activeTab === "marketplace" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">Neighborhood Marketplace</h2>
-                  <p className="text-stone-500 text-sm mt-1">Buy, sell, trade, or give away items with your neighbors</p>
-                </div>
-                <button onClick={() => setShowMarketplaceModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
-                  <span>+</span> Post Listing
-                </button>
-              </div>
-
-              {/* Filter Pills */}
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {["All", "For Sale", "Free", "Trade"].map((filter) => (
-                  <button key={filter} className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm font-medium text-stone-600 hover:bg-party-pale hover:border-stone-400 hover:text-party transition-all whitespace-nowrap">
-                    {filter === "Free" && "🎁 "}{filter === "Trade" && "🔄 "}{filter}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketplaceListings.map((listing) => {
-                  const conditionBadge = getConditionBadge(listing.condition);
-                  
-                  return (
-                    <div key={listing.id} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition-all flex flex-col">
-                      {/* Photo */}
-                      <div className="relative h-48 bg-stone-100">
-                        {listing.photos && listing.photos.length > 0 ? (
-                          <img src={listing.photos[0]} alt={listing.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl text-stone-300">
-                            {getMarketplaceIcon(listing.category)}
-                          </div>
-                        )}
-                        {/* Listing Type Badge */}
-                        <div className="absolute top-3 left-3">
-                          {listing.listingType === "free" && (
-                            <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">FREE</span>
-                          )}
-                          {listing.listingType === "trade" && (
-                            <span className="px-2 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">🔄 TRADE</span>
-                          )}
-                        </div>
-                        {/* Condition Badge */}
-                        <div className="absolute top-3 right-3">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${conditionBadge.class}`}>
-                            {conditionBadge.text}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-bold text-stone-900">{listing.title}</h3>
-                          {listing.listingType === "sell" && (
-                            <span className="text-lg font-bold text-party">${listing.price}</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-stone-600 mb-3 line-clamp-2 flex-1">{listing.description}</p>
-                        
-                        <div className="flex items-center justify-between text-xs text-stone-500 mb-3">
-                          <span>🏠 House #{listing.houseNumber}</span>
-                          <span>{listing.interested} interested</span>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => setShowListingModal(listing)}
-                            className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm font-medium hover:bg-stone-200 transition-colors"
-                          >
-                            View Details
-                          </button>
-                          <button 
-                            onClick={() => handleInterested(listing.id)}
-                            className="flex-1 px-3 py-2 bg-party text-white rounded-lg text-sm font-medium hover:bg-party-dark transition-colors"
-                          >
-                            I'm Interested
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {activeTab === "board" && (
+            <HubBoardPanel
+              posts={boardPosts}
+              onPost={() => {
+                setFormError("");
+                setShowBoardModal(true);
+              }}
+              onViewPost={setBoardDetailPost}
+              onRespond={openBoardRespond}
+              onEndorse={setEndorsePost}
+            />
           )}
 
-          {/* Tasks Tab */}
-          {activeTab === "tasks" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">Neighbor Task Board</h2>
-                  <p className="text-stone-500 text-sm mt-1">Need a hand? Ask your neighbors!</p>
-                </div>
-                <button onClick={() => setShowTaskModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
-                  <span>+</span> Request Help
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {tasks.map((task) => (
-                  <div key={task.id} className="bg-white rounded-xl shadow-sm border border-stone-200 p-5 hover:shadow-md transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-3xl">{getCategoryIcon(task.category)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-stone-900 text-lg">{task.title}</h3>
-                            <p className="text-xs text-party font-medium">🏠 House #{task.houseNumber}</p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            task.urgency === "high" ? "bg-red-100 text-red-700" :
-                            task.urgency === "medium" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-green-100 text-green-700"
-                          }`}>
-                            {task.urgency} priority
-                          </span>
-                        </div>
-                        <p className="text-stone-600 mt-2">{task.description}</p>
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-sm text-party font-medium">{task.offers} neighbor{task.offers !== 1 && "s"} offered to help</span>
-                          <button onClick={() => handleOfferHelp(task.id)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-colors text-sm">
-                            I Can Help!
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {activeTab === "neighbors" && (
+            <HubNeighborsPanel
+              neighbors={neighbors}
+              onOfferSkill={() => setShowNeighborOfferModal(true)}
+              onContact={setNeighborContact}
+            />
           )}
 
-          {/* Local Helpers Tab */}
-          {activeTab === "helpers" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">Local Helpers</h2>
-                  <p className="text-stone-500 text-sm mt-1">Trusted services from your neighbors</p>
-                </div>
-                <button onClick={() => setShowHelperModal(true)} className="px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-all flex items-center gap-2">
-                  <span>+</span> List Your Service
-                </button>
-              </div>
-
-              <div className="bg-party-pale border border-party/30 rounded-xl p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">💼</span>
-                  <div>
-                    <p className="font-semibold text-stone-900">Become a Local Helper</p>
-                    <p className="text-sm text-stone-600 mt-1">List your services for just <strong className="text-party">$5/month</strong>. Help neighbors & earn extra income!</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                {localHelpers.map((helper) => (
-                  <div key={helper.id} className="bg-white rounded-xl shadow-sm border border-stone-200 p-5 hover:shadow-md transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-4xl">{getServiceIcon(helper.title)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-stone-900 text-lg">{helper.title}</h3>
-                            <p className="text-xs text-party font-medium">🏠 House #{helper.houseNumber}</p>
-                          </div>
-                          <span className="text-lg font-bold text-party">{helper.price}</span>
-                        </div>
-                        <p className="text-stone-600 mt-2 text-sm">{helper.description}</p>
-                        <div className="flex items-center gap-4 mt-3 text-sm">
-                          <span className="flex items-center gap-1 text-stone-600">⭐ {helper.rating}</span>
-                          <span className="text-stone-400">({helper.reviews} reviews)</span>
-                          <span className="text-stone-500">{helper.availability}</span>
-                        </div>
-                        <button 
-                          onClick={() => setShowContactModal(helper)}
-                          className="mt-4 w-full px-4 py-2 bg-party text-white rounded-lg font-medium hover:bg-party-dark transition-colors text-sm"
-                        >
-                          Contact #{helper.houseNumber}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </main>
 
         <PartyPlannerModal
@@ -988,6 +711,89 @@ const Community = () => {
           onPublish={handlePublishFromPlanner}
           streetName={street?.name}
           streetId={streetId}
+        />
+
+        <HubBoardPostModal
+          isOpen={showBoardModal}
+          onClose={() => {
+            setShowBoardModal(false);
+            resetBoardDraft();
+            setFormError("");
+          }}
+          draft={boardDraft}
+          onChange={setBoardDraft}
+          onSubmit={handleCreateBoardPost}
+          submitting={hubSubmitting}
+          error={formError}
+        />
+
+        <HubChipInModal
+          event={chipInEvent}
+          isOpen={!!chipInEvent}
+          onClose={() => setChipInEvent(null)}
+          onSubmit={handleChipInSubmit}
+          submitting={hubSubmitting}
+        />
+
+        <HubRsvpModal
+          event={rsvpEvent}
+          isOpen={!!rsvpEvent}
+          onClose={() => setRsvpEvent(null)}
+          onSubmit={handleRsvpSubmit}
+          submitting={hubSubmitting}
+        />
+
+        <HubBoardDetailModal
+          post={boardDetailPost}
+          isOpen={!!boardDetailPost}
+          onClose={() => setBoardDetailPost(null)}
+          onRespond={openBoardRespond}
+          onEndorse={setEndorsePost}
+        />
+
+        <HubBoardRespondModal
+          post={boardRespond?.post}
+          respondType={boardRespond?.type}
+          isOpen={!!boardRespond}
+          onClose={() => setBoardRespond(null)}
+          onSubmit={handleBoardRespondSubmit}
+          submitting={hubSubmitting}
+        />
+
+        <HubEndorseModal
+          post={endorsePost}
+          isOpen={!!endorsePost}
+          onClose={() => setEndorsePost(null)}
+          onSubmit={handleEndorseSubmit}
+          submitting={hubSubmitting}
+        />
+
+        <HubSuccessModal
+          isOpen={!!successModal}
+          onClose={() => setSuccessModal(null)}
+          title={successModal?.title}
+          message={successModal?.message}
+          detail={successModal?.detail}
+          actionLabel={successModal?.actionLabel}
+          onAction={successModal?.onAction}
+        />
+
+        <HubNeighborModal
+          isOpen={showNeighborOfferModal}
+          onClose={() => {
+            setShowNeighborOfferModal(false);
+            setFormError("");
+          }}
+          draft={neighborDraft}
+          onChange={setNeighborDraft}
+          onSubmit={handleCreateNeighborOffer}
+          submitting={hubSubmitting}
+          error={showNeighborOfferModal ? formError : ""}
+        />
+
+        <HubNeighborContactModal
+          neighbor={neighborContact}
+          onClose={() => setNeighborContact(null)}
         />
 
         {/* MODALS */}
@@ -1025,11 +831,11 @@ const Community = () => {
               <label className="block text-sm font-medium text-stone-700 mb-1">Event Type</label>
               <select value={newEvent.type} onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
-                <option value="party">🎉 Party / Gathering</option>
-                <option value="sale">🏷️ Garage Sale</option>
-                <option value="activity">🎯 Activity / Sports</option>
-                <option value="meeting">📋 Meeting</option>
-                <option value="other">📅 Other</option>
+                <option value="party">Party / gathering</option>
+                <option value="sale">Garage sale</option>
+                <option value="activity">Activity / sports</option>
+                <option value="meeting">Meeting</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>
@@ -1049,7 +855,7 @@ const Community = () => {
                   className="w-5 h-5 rounded border-stone-300 text-party focus:ring-party/50"
                 />
                 <div>
-                  <span className="font-medium text-stone-900">💰 Enable Crowdfunding</span>
+                  <span className="font-medium text-slate-900">Enable crowdfunding</span>
                   <p className="text-xs text-stone-500">Let neighbors chip in for event supplies, rentals, etc.</p>
                 </div>
               </label>
@@ -1075,7 +881,7 @@ const Community = () => {
             <div className="border-t border-stone-200 pt-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <span className="font-medium text-stone-900">🍕 Order pizza for your event</span>
+                  <span className="font-medium text-slate-900">Order pizza for your event</span>
                   <p className="text-xs text-stone-500">Local pizza partners on your block</p>
                 </div>
                 <button
@@ -1095,11 +901,14 @@ const Community = () => {
                         <button
                           key={shop.id}
                           onClick={() => setSelectedShop(shop)}
-                          className="p-3 border-2 border-stone-200 rounded-lg hover:border-party hover:bg-party-pale transition-all text-left"
+                          className="p-3 border-2 border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/50 transition-all text-left flex gap-3 items-start"
                         >
-                          <div className="text-2xl mb-1">{shop.icon}</div>
-                          <div className="font-semibold text-sm text-stone-900">{shop.name}</div>
-                          <div className="text-xs text-stone-500">{shop.description}</div>
+                          <HubIconMark icon="pizza" size="sm" />
+                          <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 mb-1">{shop.type}</p>
+                          <div className="font-semibold text-sm text-slate-900">{shop.name}</div>
+                          <div className="text-xs text-slate-500">{shop.description}</div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -1115,10 +924,10 @@ const Community = () => {
 
                       {/* Shop items */}
                       <div className="bg-stone-50 rounded-lg p-3 mb-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-2xl">{selectedShop.icon}</span>
+                        <div className="flex items-center gap-3 mb-3">
+                          <HubIconMark icon="pizza" />
                           <div>
-                            <div className="font-semibold text-stone-900">{selectedShop.name}</div>
+                            <div className="font-semibold text-slate-900">{selectedShop.name}</div>
                             <div className="text-xs text-stone-500">{selectedShop.description}</div>
                           </div>
                         </div>
@@ -1160,7 +969,7 @@ const Community = () => {
                           <div key={index} className="flex items-center justify-between bg-white p-2 rounded border border-blue-100">
                             <div className="flex-1">
                               <div className="text-sm font-medium text-stone-900">
-                                {item.shopIcon} {item.itemName}
+                                {item.itemName}
                               </div>
                               <div className="text-xs text-stone-500">{item.shopName}</div>
                             </div>
@@ -1198,7 +1007,7 @@ const Community = () => {
                         <span className="text-lg font-bold text-party">${getTotalShopCost().toFixed(2)}</span>
                       </div>
                       <p className="text-xs text-stone-500 mt-2">
-                        💳 Payment will be processed when you confirm the order
+                        Payment will be processed when you confirm the order.
                       </p>
                     </div>
                   )}
@@ -1206,264 +1015,14 @@ const Community = () => {
               )}
             </div>
 
-            <button onClick={handleCreateEvent} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
-              {newEvent.needsFunding ? "Post Event with Fundraising" : "Post Event"}
-            </button>
-          </div>
-        </Modal>
-
-        {/* New Task Modal */}
-        <Modal isOpen={showTaskModal} onClose={() => setShowTaskModal(false)} title="Request Help">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">What do you need help with?</label>
-              <input type="text" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                placeholder="Quick lawn mow, tech help, pet sitting..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Category</label>
-                <select value={newTask.category} onChange={(e) => setNewTask({...newTask, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
-                  <option value="tech">💻 Tech Help</option>
-                  <option value="yard">🌿 Yard Work</option>
-                  <option value="pets">🐾 Pet Care</option>
-                  <option value="moving">📦 Moving Help</option>
-                  <option value="errands">🏃 Errands</option>
-                  <option value="other">✨ Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Priority</label>
-                <select value={newTask.urgency} onChange={(e) => setNewTask({...newTask, urgency: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
-                  <option value="low">Low - Whenever</option>
-                  <option value="medium">Medium - This Week</option>
-                  <option value="high">High - ASAP</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Details</label>
-              <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                rows="3" placeholder="Describe what you need, when, and any other details..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-            <button onClick={handleCreateTask} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
-              Post Request
-            </button>
-          </div>
-        </Modal>
-
-        {/* New Marketplace Listing Modal */}
-        <Modal isOpen={showMarketplaceModal} onClose={() => setShowMarketplaceModal(false)} title="Post a Listing">
-          <div className="space-y-4">
-            {/* Listing Type */}
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">What are you doing?</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: "sell", label: "Selling", icon: "💵" },
-                  { value: "free", label: "Giving Away", icon: "🎁" },
-                  { value: "trade", label: "Trading", icon: "🔄" }
-                ].map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setNewListing({...newListing, listingType: type.value})}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border-2 ${
-                      newListing.listingType === type.value 
-                        ? "border-party bg-party-pale text-stone-700" 
-                        : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-                    }`}
-                  >
-                    <span className="mr-1">{type.icon}</span> {type.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Item Title</label>
-              <input type="text" value={newListing.title} onChange={(e) => setNewListing({...newListing, title: e.target.value})}
-                placeholder="What are you selling/giving away?" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-
-            {/* Price - only show for selling */}
-            {newListing.listingType === "sell" && (
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Price ($)</label>
-                <input type="number" value={newListing.price} onChange={(e) => setNewListing({...newListing, price: e.target.value})}
-                  placeholder="0" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-              </div>
-            )}
-
-            {/* Trade description */}
-            {newListing.listingType === "trade" && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
-                🔄 Describe what you're looking for in trade in the description below
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Category</label>
-                <select value={newListing.category} onChange={(e) => setNewListing({...newListing, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
-                  <option value="furniture">🪑 Furniture</option>
-                  <option value="electronics">📱 Electronics</option>
-                  <option value="sports">⚽ Sports & Outdoors</option>
-                  <option value="outdoor">🌿 Garden & Outdoor</option>
-                  <option value="baby">👶 Baby & Kids</option>
-                  <option value="clothing">👕 Clothing</option>
-                  <option value="books">📚 Books & Media</option>
-                  <option value="other">📦 Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Condition</label>
-                <select value={newListing.condition} onChange={(e) => setNewListing({...newListing, condition: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party">
-                  <option value="new">New (unopened)</option>
-                  <option value="excellent">Like New</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="used">Used</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
-              <textarea value={newListing.description} onChange={(e) => setNewListing({...newListing, description: e.target.value})}
-                rows="3" placeholder="Describe the item, dimensions, any flaws, pickup details..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-
-            {/* Photo Upload */}
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Photo (optional)</label>
-              <div className="flex items-center gap-4">
-                {newListing.photoPreview ? (
-                  <div className="relative">
-                    <img src={newListing.photoPreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-stone-200" />
-                    <button 
-                      type="button"
-                      onClick={() => setNewListing({...newListing, photoPreview: null})}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-sm hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg cursor-pointer hover:border-party hover:bg-party-pale transition-colors">
-                    <span className="text-2xl text-stone-400">📷</span>
-                    <span className="text-xs text-stone-500 mt-1">Add Photo</span>
-                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                  </label>
-                )}
-                <p className="text-xs text-stone-500 flex-1">Add a photo to help neighbors see what you're offering</p>
-              </div>
-            </div>
-
-            <button onClick={handleCreateListing} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
-              {newListing.listingType === "sell" ? `Post for $${newListing.price || '0'}` : 
-               newListing.listingType === "free" ? "Post Free Item" : "Post Trade Listing"}
-            </button>
-          </div>
-        </Modal>
-
-        {/* Listing Detail Modal */}
-        <Modal isOpen={!!showListingModal} onClose={() => setShowListingModal(null)} title={showListingModal?.title || "Listing Details"}>
-          {showListingModal && (
-            <div className="space-y-4">
-              {/* Photo */}
-              {showListingModal.photos && showListingModal.photos.length > 0 ? (
-                <img src={showListingModal.photos[0]} alt={showListingModal.title} className="w-full h-48 object-cover rounded-lg" />
-              ) : (
-                <div className="w-full h-48 bg-stone-100 rounded-lg flex items-center justify-center text-6xl text-stone-300">
-                  {getMarketplaceIcon(showListingModal.category)}
-                </div>
-              )}
-
-              {/* Price & Type */}
-              <div className="flex items-center justify-between">
-                {showListingModal.listingType === "sell" && (
-                  <span className="text-3xl font-bold text-party">${showListingModal.price}</span>
-                )}
-                {showListingModal.listingType === "free" && (
-                  <span className="text-2xl font-bold text-green-600">🎁 FREE</span>
-                )}
-                {showListingModal.listingType === "trade" && (
-                  <span className="text-2xl font-bold text-purple-600">🔄 Trade</span>
-                )}
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getConditionBadge(showListingModal.condition).class}`}>
-                  {getConditionBadge(showListingModal.condition).text}
-                </span>
-              </div>
-
-              {/* Description */}
-              <div className="bg-stone-50 rounded-lg p-4">
-                <p className="text-stone-700">{showListingModal.description}</p>
-              </div>
-
-              {/* Posted Info */}
-              <div className="flex items-center justify-between text-sm text-stone-500">
-                <span>🏠 House #{showListingModal.houseNumber}</span>
-                <span>Posted {showListingModal.postedDate}</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-stone-500">
-                <span className="font-semibold text-party">{showListingModal.interested}</span> neighbors interested
-              </div>
-
-              {/* Action */}
-              <div className="bg-party-pale border border-party/30 rounded-lg p-4">
-                <p className="text-stone-800 font-medium">🏠 Walk over to House #{showListingModal.houseNumber}</p>
-                <p className="text-sm text-stone-700 mt-2">Knock on their door or leave a note to discuss the item!</p>
-              </div>
-
-              <button 
-                onClick={() => { handleInterested(showListingModal.id); setShowListingModal(null); }}
-                className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors"
-              >
-                I'm Interested!
-              </button>
-            </div>
-          )}
-        </Modal>
-
-        {/* New Helper Service Modal */}
-        <Modal isOpen={showHelperModal} onClose={() => setShowHelperModal(false)} title="List Your Service">
-          <div className="space-y-4">
-            <div className="bg-party-pale border border-party/30 rounded-lg p-3 text-sm text-stone-800">
-              💼 Listing fee: <strong>$5/month</strong> — helps keep our community spam-free!
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Service Name</label>
-              <input type="text" value={newHelper.title} onChange={(e) => setNewHelper({...newHelper, title: e.target.value})}
-                placeholder="Snow Removal, Lawn Mowing, Dog Walking..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Price</label>
-                <input type="text" value={newHelper.price} onChange={(e) => setNewHelper({...newHelper, price: e.target.value})}
-                  placeholder="$20/driveway, $15/hour..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Availability</label>
-                <input type="text" value={newHelper.availability} onChange={(e) => setNewHelper({...newHelper, availability: e.target.value})}
-                  placeholder="Weekends, Year-round..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
-              <textarea value={newHelper.description} onChange={(e) => setNewHelper({...newHelper, description: e.target.value})}
-                rows="3" placeholder="Describe your service, what's included, your experience..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-party/50 focus:border-party" />
-            </div>
-            <button onClick={handleCreateHelper} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
-              List Service ($5/month)
+            {formError && showEventModal && <p className="text-sm text-red-600">{formError}</p>}
+            <button
+              type="button"
+              onClick={handleCreateEvent}
+              disabled={hubSubmitting}
+              className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors disabled:opacity-50"
+            >
+              {hubSubmitting ? "Posting…" : newEvent.needsFunding ? "Post event with fundraising" : "Post event"}
             </button>
           </div>
         </Modal>
@@ -1472,10 +1031,15 @@ const Community = () => {
         <Modal isOpen={!!showDetailModal} onClose={() => setShowDetailModal(null)} title={showDetailModal?.title || "Event Details"}>
           {showDetailModal && (
             <div className="space-y-4">
-              <div className="text-4xl text-center">{getEventIcon(showDetailModal.type)}</div>
+              <div className="flex justify-center">
+                <HubCategoryChip
+                  icon={getEventTypeIcon(showDetailModal.type)}
+                  label={getEventTypeLabel(showDetailModal.type)}
+                />
+              </div>
               <div className="text-center">
-                <p className="text-lg text-stone-600">📅 {showDetailModal.date} at {showDetailModal.time}</p>
-                <p className="text-sm text-party font-medium mt-1">🏠 Hosted by #{showDetailModal.houseNumber}</p>
+                <p className="text-lg text-slate-600">{showDetailModal.date} at {showDetailModal.time}</p>
+                <p className="text-sm text-slate-500 mt-1">Hosted by {formatHouse(showDetailModal.houseNumber)}</p>
               </div>
               <div className="bg-stone-50 rounded-lg p-4">
                 <p className="text-stone-700">{showDetailModal.description}</p>
@@ -1486,18 +1050,15 @@ const Community = () => {
 
               {/* Partner Shop Items Section */}
               {showDetailModal.partnerShopItems && showDetailModal.partnerShopItems.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">🍕</span>
-                    <span className="font-semibold text-stone-900">Ordered from Partner Shops</span>
-                  </div>
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-3">Local food order</p>
                   <div className="space-y-2">
                     {showDetailModal.partnerShopItems.map((item, index) => (
                       <div key={index} className="bg-white p-2 rounded border border-blue-100">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="text-sm font-medium text-stone-900">
-                              {item.shopIcon} {item.itemName} × {item.quantity}
+                              {item.itemName} × {item.quantity}
                             </div>
                             <div className="text-xs text-stone-500">{item.shopName}</div>
                           </div>
@@ -1515,19 +1076,18 @@ const Community = () => {
                     </span>
                   </div>
                   <p className="text-xs text-stone-500 mt-2">
-                    💳 Order will be delivered to the event location
+                    Order will be delivered to the event location.
                   </p>
                 </div>
               )}
 
               {/* Crowdfunding Section in Detail Modal */}
               {showDetailModal.needsFunding && (
-                <div className="bg-warm-100 border border-stone-200 rounded-lg p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">💰</span>
-                    <span className="font-semibold text-stone-900">Event Fundraising</span>
+                    <span className="font-semibold text-slate-900">Event fundraising</span>
                     {showDetailModal.fundingRaised >= showDetailModal.fundingGoal && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">✓ Funded!</span>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">Funded</span>
                     )}
                   </div>
                   {showDetailModal.fundingDescription && (
@@ -1546,44 +1106,25 @@ const Community = () => {
                   <p className="text-xs text-stone-500 mb-3">{showDetailModal.fundingBackers || 0} neighbors have chipped in</p>
                   
                   {showDetailModal.fundingRaised < showDetailModal.fundingGoal && (
-                    <div className="flex gap-2">
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 5); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$5</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 10); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$10</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 25); }} className="flex-1 px-3 py-2 bg-party text-white rounded-lg text-sm hover:bg-party-dark transition-colors">$25</button>
-                      <button onClick={() => { handleChipIn(showDetailModal.id, 50); }} className="flex-1 px-3 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm hover:bg-stone-200 transition-colors">$50</button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setChipInEvent(showDetailModal)}
+                      className="w-full mt-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                    >
+                      Chip in
+                    </button>
                   )}
                 </div>
               )}
 
-              <button 
-                onClick={() => { handleGoingToggle(showDetailModal.id); setShowDetailModal(null); }}
+              <button
+                type="button"
+                onClick={() => setRsvpEvent(showDetailModal)}
                 className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
-                  showDetailModal.going ? "bg-green-100 text-green-700" : "bg-party text-white hover:bg-party-dark"
+                  showDetailModal.going ? "bg-emerald-100 text-emerald-800" : "bg-indigo-600 text-white hover:bg-indigo-700"
                 }`}
               >
-                {showDetailModal.going ? "✓ You're Going!" : "I'm Going!"}
-              </button>
-            </div>
-          )}
-        </Modal>
-
-        {/* Contact Helper Modal */}
-        <Modal isOpen={!!showContactModal} onClose={() => setShowContactModal(null)} title={`Contact #${showContactModal?.houseNumber}`}>
-          {showContactModal && (
-            <div className="space-y-4 text-center">
-              <div className="text-6xl">{getServiceIcon(showContactModal.title)}</div>
-              <h3 className="text-xl font-bold text-stone-900">{showContactModal.title}</h3>
-              <p className="text-2xl font-bold text-party">{showContactModal.price}</p>
-              <div className="bg-party-pale border border-party/30 rounded-lg p-4">
-                <p className="text-stone-800 font-medium">🏠 Walk over to House #{showContactModal.houseNumber}</p>
-                <p className="text-sm text-stone-700 mt-2">Ring the doorbell or leave a note to arrange the service!</p>
-              </div>
-              <p className="text-stone-600 text-sm">
-                BlockParty encourages in-person connections. Walking over is the best way to meet your neighbors and arrange services!
-              </p>
-              <button onClick={() => setShowContactModal(null)} className="w-full px-4 py-3 bg-party text-white rounded-lg font-semibold hover:bg-party-dark transition-colors">
-                Got It!
+                {showDetailModal.going ? "Update RSVP" : "RSVP — I'm going"}
               </button>
             </div>
           )}

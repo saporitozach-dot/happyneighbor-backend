@@ -1,11 +1,11 @@
 import React, { useState } from "react";
+import BrandIcon from "./brand/BrandIcon";
 import { generatePartyPlan, PARTY_TEMPLATES } from "../utils/partyPlanner";
 import { API_URL } from "../utils/apiConfig";
 
 const PIZZA_SHOP = {
   id: 1,
   name: "Tony's Pizza",
-  icon: "🍕",
   items: [
     { id: 1, name: "Large Cheese Pizza", price: 18.99, serves: "8-10 people" },
     { id: 2, name: "Large Pepperoni Pizza", price: 21.99, serves: "8-10 people" },
@@ -59,13 +59,13 @@ const PartyPlannerModal = ({ isOpen, onClose, onPublish, streetName, streetId })
       const nextPlan = data.plan || generatePartyPlan({ templateKey, guests, date, time, streetName });
       setPlan(nextPlan);
       const match = PIZZA_SHOP.items.find((i) => i.name === nextPlan.recommendedPizza) || PIZZA_SHOP.items[2];
-      setPizzaItem({ ...match, shopName: PIZZA_SHOP.name, shopIcon: PIZZA_SHOP.icon, quantity: 1 });
+      setPizzaItem({ ...match, shopName: PIZZA_SHOP.name, quantity: 1 });
       setStep(3);
     } catch {
       const nextPlan = generatePartyPlan({ templateKey, guests, date, time, streetName });
       setPlan(nextPlan);
       const match = PIZZA_SHOP.items.find((i) => i.name === nextPlan.recommendedPizza) || PIZZA_SHOP.items[2];
-      setPizzaItem({ ...match, shopName: PIZZA_SHOP.name, shopIcon: PIZZA_SHOP.icon, quantity: 1 });
+      setPizzaItem({ ...match, shopName: PIZZA_SHOP.name, quantity: 1 });
       setStep(3);
     } finally {
       setLoading(false);
@@ -137,8 +137,11 @@ const PartyPlannerModal = ({ isOpen, onClose, onPublish, streetName, streetId })
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={handleClose} />
         <div className="relative bg-white border border-slate-200 shadow-xl max-w-lg w-full rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-start mb-4">
-            <div>
+          <div className="flex justify-between items-start mb-4 gap-3">
+            <div className="hub-icon-mark w-12 h-12 shrink-0">
+              <BrandIcon name="planner" size={24} className="text-indigo-600" />
+            </div>
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">Party in a box</p>
               <h3 className="font-display text-xl font-semibold text-slate-900">AI block party planner</h3>
               <p className="text-sm text-slate-500 mt-1">Plan the event, pizza, and neighbor texts in minutes.</p>
@@ -163,8 +166,7 @@ const PartyPlannerModal = ({ isOpen, onClose, onPublish, streetName, streetId })
                         : "border-slate-200 hover:border-indigo-300"
                     }`}
                   >
-                    <span className="text-2xl">{t.icon}</span>
-                    <p className="font-medium text-slate-900 text-sm mt-2">{t.label}</p>
+                    <p className="font-medium text-slate-900 text-sm">{t.label}</p>
                   </button>
                 ))}
               </div>
@@ -218,7 +220,10 @@ const PartyPlannerModal = ({ isOpen, onClose, onPublish, streetName, streetId })
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-800 mb-2">🍕 Pizza checkout (local partners)</p>
+                <p className="text-sm font-medium text-slate-800 mb-2 inline-flex items-center gap-2">
+                  <BrandIcon name="pizza" size={18} className="text-indigo-600" />
+                  Pizza checkout (local partners)
+                </p>
                 {pizzaItem && (
                   <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl">
                     <div>
